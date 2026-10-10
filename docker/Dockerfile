@@ -1,4 +1,6 @@
-# syntax=docker/dockerfile:1
+# 注: 原首行 `# syntax=docker/dockerfile:1` 已移除 — 本机 daemon 的阿里云
+# 镜像加速器对 docker/dockerfile 返回 403;Docker 内置 BuildKit 前端已支持
+# 本文件用到的全部特性(RUN --mount=type=cache 等),无需外部前端镜像。
 # =============================================================================
 # Octop — 多阶段 Docker 构建
 #
