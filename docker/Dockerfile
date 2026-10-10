@@ -131,6 +131,12 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     && apt-get purge -y --auto-remove build-essential \
     && rm -rf /var/lib/apt/lists/* /tmp/*
 
+# 修复 octop-harness 的 MCP 工具参数类型降级(object/array 被声明为 str,
+# 导致嵌套参数被模型序列化成字符串、服务端校验拒绝)。构建期对安装的
+# octop_harness 包打幂等补丁,锚点失效时构建失败以提示复核。
+COPY docker/patches/patch_harness_mcp.py /tmp/patch_harness_mcp.py
+RUN python /tmp/patch_harness_mcp.py && rm -f /tmp/patch_harness_mcp.py
+
 RUN mkdir -p /data/.octop
 
 EXPOSE 8088
