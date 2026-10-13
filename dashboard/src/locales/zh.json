@@ -1760,6 +1760,8 @@
     "ask_agent": "咨询专家",
     "call_agent": "调用专家",
     "acp_runner": "ACP 外部专家",
+    "list_sessions": "列出聊天会话",
+    "send_to_session": "发送消息到会话",
     "browser_use": "使用浏览器",
     "browser_control": "浏览器控制",
     "send_file_to_user": "发送文件",
@@ -1809,6 +1811,7 @@
       "knowledge": "知识库",
       "mobile": "手机",
       "teams": "多专家",
+      "messaging": "跨会话消息",
       "misc": "其他",
       "plugin": "插件工具"
     },

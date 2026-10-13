@@ -498,6 +498,7 @@ class OctopServer:
         install_auto_backup_job(cron_mgr, server=self)
 
         registry.set_cron_manager(cron_mgr)
+        registry.set_gateway(gateway)
         registry.set_team_processor(gateway.processor.teams)
         hitl_session_store = gateway.processor.hitl_coordinator.session_policies
         hitl_session_store.replace_repo(self.services.repos.thread_repo)

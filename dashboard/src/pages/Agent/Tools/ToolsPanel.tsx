@@ -36,6 +36,7 @@ const CATEGORY_ORDER = [
   "knowledge",
   "mobile",
   "teams",
+  "messaging",
   "misc",
 ] as const;
 

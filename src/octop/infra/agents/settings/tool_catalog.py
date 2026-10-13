@@ -95,6 +95,9 @@ BUILTIN_TOOL_CATALOG: tuple[BuiltinToolEntry, ...] = (
     BuiltinToolEntry("mobile_handoff_to_user", "mobile"),
     BuiltinToolEntry("agent_list", "teams"),
     BuiltinToolEntry("ask_agent", "teams"),
+    # Cross-session message delivery
+    BuiltinToolEntry("list_sessions", "messaging"),
+    BuiltinToolEntry("send_to_session", "messaging"),
 )
 
 

@@ -36,6 +36,8 @@ HITL_TOOL_EXCLUDE: frozenset[str] = frozenset(
         "ask_agent",
         "call_agent",
         "acp_runner",
+        # Cross-session delivery (read-only listing; send_to_session stays gateable)
+        "list_sessions",
     }
 )
 

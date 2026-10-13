@@ -92,6 +92,7 @@ if TYPE_CHECKING:
     from octop.infra.cron.manager import CronManager
     from octop.infra.db.repos.agents import AgentRow
     from octop.infra.db.services import RepoBundle
+    from octop.infra.gateway.gateway import Gateway
     from octop.infra.proactive.scheduler import ProactiveCareScheduler
     from octop.infra.utils.paths import PathLayout
 
@@ -438,6 +439,7 @@ class AgentManager:
         self._expert_catalog = expert_catalog
         self._plugin_manager = plugin_manager
         self._cron_manager: CronManager | None = None
+        self._gateway: Gateway | None = None
         self._proactive_scheduler: ProactiveCareScheduler | None = None
         self._team_processor: Any | None = None
         self._hitl_session_store: HitlSessionPolicyStore | None = None
@@ -531,6 +533,10 @@ class AgentManager:
     def set_cron_manager(self, cron_manager: CronManager) -> None:
         """Attach the process-wide CronManager (must be set before boot())."""
         self._cron_manager = cron_manager
+
+    def set_gateway(self, gateway: Gateway) -> None:
+        """Attach the Gateway back-reference for cross-session delivery tools."""
+        self._gateway = gateway
 
     def set_proactive_scheduler(self, scheduler: ProactiveCareScheduler) -> None:
         """Attach the process-wide proactive-care scheduler (optional; used after create/delete)."""
@@ -3497,6 +3503,16 @@ class AgentManager:
 
             cron_tools = build_cronjob_tools(self._cron_manager)
 
+        session_push_tools: list[Any] = []
+        if not team_host and self._gateway is not None:
+            from octop.infra.gateway.tools import build_session_push_tools  # noqa: PLC0415
+
+            session_push_tools = build_session_push_tools(
+                gateway=self._gateway,
+                agent_manager=self,
+                repos=self._repos,
+            )
+
         from types import SimpleNamespace  # noqa: PLC0415
 
         from octop.infra.knowledge.tools import build_knowledge_tools  # noqa: PLC0415
@@ -3565,7 +3581,7 @@ class AgentManager:
             plugin_tools,
             reserved={
                 str(getattr(t, "name", ""))
-                for t in [*(cron_tools or []), *knowledge_tools, *mobile_tools]
+                for t in [*(cron_tools or []), *knowledge_tools, *mobile_tools, *session_push_tools]
             },
         )
         self._plugin_tool_labels[row.agent_id] = {
@@ -3620,6 +3636,7 @@ class AgentManager:
         merged_tools: list[Any] = []
         if cron_tools:
             merged_tools.extend(cron_tools)
+        merged_tools.extend(session_push_tools)
         merged_tools.extend(knowledge_tools)
         merged_tools.extend(mobile_tools)
         merged_tools.extend(plugin_tools)

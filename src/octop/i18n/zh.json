@@ -619,6 +619,8 @@
     "ask_agent": "咨询专家",
     "call_agent": "调用专家",
     "acp_runner": "ACP 外部 Agent",
+    "list_sessions": "列出聊天会话",
+    "send_to_session": "发送消息到会话",
     "browser_use": "使用浏览器",
     "browser_control": "浏览器控制",
     "send_file_to_user": "发送文件",
@@ -704,6 +706,11 @@
   "cron": {
     "history": {
       "executed": "任务{cron_id} :{name} 执行."
+    }
+  },
+  "gateway": {
+    "history": {
+      "pushed": "跨会话推送（来自 {channel}）"
     }
   },
   "agents": {
