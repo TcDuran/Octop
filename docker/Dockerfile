@@ -59,6 +59,12 @@ RUN mkdir -p ../src/octop/dashboard
 # 镜像构建跳过完整 tsc；生产打包由 vite/esbuild 完成（使用 lockfile 中的 vite，不用 npx）
 RUN NODE_ENV=production NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}" npm run build:docker
 
+# 白标补丁：在镜像内构建产物上应用品牌替换（标题/manifest/PWA 图标/logo）。
+# 脚本带命中断言，上游文案变化时构建失败以提示更新 brand/patch-octop-brand.sh。
+COPY brand/assets /build/brand/assets
+COPY brand/patch-octop-brand.sh /build/brand/patch-octop-brand.sh
+RUN bash /build/brand/patch-octop-brand.sh /build
+
 
 # ---------------------------------------------------------------------------
 # 阶段 2 — Python 运行时
