@@ -45,3 +45,9 @@ node_modules
 *.log
 logs
 agent-transcripts
+
+# 本地运行数据与备份（含凭据，绝不能进构建上下文）
+data
+data-backup-*
+.playwright-mcp
+.agents
