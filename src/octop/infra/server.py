@@ -279,8 +279,21 @@ class OctopServer:
             or getattr(self._sso_service, "_services", None) is not self.services
             or getattr(self._sso_service, "_user_manager", None) is not self.user_manager
         ):
-            self._sso_service = SsoServiceCls(self.services, self.user_manager)
+            self._sso_service = SsoServiceCls(
+                self.services,
+                self.user_manager,
+                on_plat_login=self._reload_plat_connectors,
+            )
         return self._sso_service
+
+    async def _reload_plat_connectors(self, user_id: int) -> None:
+        if self.app_runtime is None or self.services is None:
+            raise RuntimeError("Agent runtime is not available")
+        registry = self.app_runtime.agent_registry
+        await registry.reload_connectors_for_user(user_id)
+        for row in self.services.repos.agent_repo.list_by_user(user_id, include_disabled=False):
+            if row.last_state == "failed":
+                raise RuntimeError("PLAT connector reload failed")
 
     @property
     def ldap_service(self) -> LdapAuthService:

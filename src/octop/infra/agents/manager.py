@@ -72,6 +72,7 @@ from octop.infra.connectors.builder import (
     gateway_mcp_server_names,
     inject_missing_gateway_tools,
 )
+from octop.infra.connectors.plat_auth import PlatMcpAuth
 from octop.infra.connectors.service import ConnectorService
 from octop.infra.db.repos.audit import ACTOR_SYSTEM
 from octop.infra.errors import ErrorCode, OctopError
@@ -497,6 +498,7 @@ class AgentManager:
             secret_repo=repos.secret_repo,
             settings_repo=repos.settings_repo,
             config=self._config,
+            plat_auth=PlatMcpAuth(repos.secret_repo, repos.sso_repo, repos.user_repo),
         )
         # User-scoped custom MCP tools: (user_id, server_name, fingerprint) -> tools
         self._mcp_tool_cache: dict[tuple[int, str, str], list[Any]] = {}
@@ -528,6 +530,7 @@ class AgentManager:
             secret_repo=repos.secret_repo,
             settings_repo=repos.settings_repo,
             config=self._config,
+            plat_auth=PlatMcpAuth(repos.secret_repo, repos.sso_repo, repos.user_repo),
         )
 
     def set_cron_manager(self, cron_manager: CronManager) -> None:
@@ -1943,6 +1946,7 @@ class AgentManager:
             wrap_tools_for_shared_use,
         )
 
+        spec = self._connector_svc.prepare_mcp_spec(user_id, spec)
         fp = fingerprint_mcp_spec(spec)
         cache_key = (user_id, server_name, fp)
         cached = self._mcp_tool_cache.get(cache_key)
@@ -2053,6 +2057,14 @@ class AgentManager:
         if uid is None and connector_user_id is not None:
             uid = connector_user_id
 
+        # A shared definition is safe; a shared live Agent must not retain another caller's tools.
+        if row is not None and row.user_id != uid and uid is not None:
+            for name, spec in self._connector_svc.custom_harness_configs(uid).items():
+                if name in names:
+                    prepared = self._connector_svc.prepare_mcp_spec(uid, spec)
+                    if prepared is not spec:
+                        raise OctopError.localized(ErrorCode.PLAT_MCP_CONFIG_INVALID)
+
         tool_set: frozenset[str] = getattr(agent, "_mcp_tool_name_set", frozenset())
         missing_tools = [n for n in names if not any(t.startswith(f"{n}_") for t in tool_set)]
         logger.info(
@@ -2086,6 +2098,8 @@ class AgentManager:
                     continue
                 try:
                     tools = await self._get_or_load_mcp_tools(uid, name, spec)
+                except OctopError:
+                    raise
                 except Exception:
                     logger.exception(
                         "prepare_chat_mcp agent=%s: failed loading custom MCP %s",

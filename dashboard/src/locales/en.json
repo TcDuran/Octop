@@ -82,6 +82,8 @@
     "notImplemented": "This page is under construction."
   },
   "apiErrors": {
+    "PLAT_LOGIN_REQUIRED": "Please sign in through PLAT to authorize business tools.",
+    "PLAT_MCP_CONFIG_INVALID": "PLAT MCP authentication configuration conflicts or contains an invalid trusted URL.",
     "AUTH_FAILED": "Authentication failed.",
     "TOKEN_EXPIRED": "Session expired. Please sign in again.",
     "SETUP_REQUIRED": "Initial setup is required.",

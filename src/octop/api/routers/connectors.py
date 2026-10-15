@@ -60,6 +60,7 @@ from octop.infra.connectors.oauth.registry import (
     oauth_state_kind_for_target,
     oauth_target_requires_https,
 )
+from octop.infra.connectors.plat_auth import PlatMcpAuth
 from octop.infra.connectors.probe import (
     detect_local_weknora,
     prepare_probe_credentials,
@@ -281,6 +282,9 @@ def _connector_service(server: Any) -> ConnectorService:
         secret_repo=server.services.secret_repo,
         settings_repo=server.services.settings_repo,
         config=server.services.config,
+        plat_auth=PlatMcpAuth(
+            server.services.secret_repo, server.services.sso_repo, server.services.user_repo
+        ),
     )
 
 
@@ -663,7 +667,10 @@ async def test_custom_mcp(
             ErrorCode.CONNECTOR_INVALID_CREDENTIALS,
             "provide name or server spec to probe",
         )
-    result = await probe_custom_mcp_server(spec)
+    result = await probe_custom_mcp_server(
+        spec,
+        prepare_spec=lambda spec: svc.prepare_mcp_spec(user.id, spec),
+    )
     if body.name:
         try:
             if result.get("oauth", {}).get("available") and not oauth_configured(spec):
@@ -1008,7 +1015,10 @@ async def test_instance(
         raw = saved.get(synthetic_name)
         if not isinstance(raw, dict):
             raise OctopError(ErrorCode.CONNECTOR_NOT_FOUND, f"instance {instance_id!r} not found")
-        return await probe_custom_mcp_server(dict(raw))
+        return await probe_custom_mcp_server(
+            dict(raw),
+            prepare_spec=lambda spec: svc.prepare_mcp_spec(user.id, spec),
+        )
 
     repo = server.services.repos.connector_repo
     inst = repo.get(instance_id)

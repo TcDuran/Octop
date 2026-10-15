@@ -42,6 +42,7 @@ from octop.infra.connectors.gateway.feishu_user_auth import (
 )
 from octop.infra.connectors.oauth import refresh_oauth_credentials
 from octop.infra.connectors.oauth.registry import refresh_custom_mcp_oauth
+from octop.infra.connectors.plat_auth import PlatMcpAuth
 from octop.infra.db.repos.connectors import ConnectorRepo, ConnectorRow
 from octop.infra.db.repos.secrets import SecretRepo
 from octop.infra.errors import ErrorCode, OctopError
@@ -85,11 +86,13 @@ class ConnectorService:
         secret_repo: SecretRepo,
         settings_repo: Any,
         config: OctopConfig,
+        plat_auth: PlatMcpAuth | None = None,
     ) -> None:
         self._repo = repo
         self._secret_repo = secret_repo
         self._settings_repo = settings_repo
         self._config = config
+        self._plat_auth = plat_auth
 
     def list_user_instances(
         self,
@@ -598,6 +601,9 @@ class ConnectorService:
                 if built is not None:
                     configs[shared_mcp_server_name(parent.instance_id, name)] = built
         return configs
+
+    def prepare_mcp_spec(self, user_id: int, spec: dict[str, Any]) -> dict[str, Any]:
+        return self._plat_auth.prepare(user_id, spec) if self._plat_auth else spec
 
     async def mcp_configs_for_user(self, user_id: int) -> dict[str, Any]:
         configs: dict[str, Any] = {}

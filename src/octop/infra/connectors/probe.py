@@ -163,6 +163,8 @@ async def _maybe_attach_oauth_discovery(
     """When auth fails without a bearer token, try MCP OAuth discovery."""
     if result.get("ok") is not False or result.get("error_type") != "auth":
         return result
+    if any(k.lower() == "x-plat-token" for k in headers):
+        return result
     auth_header = str(headers.get("Authorization") or "").strip()
     if auth_header.lower().startswith("bearer ") and len(auth_header) > 7:
         return result
@@ -332,6 +334,7 @@ async def probe_streamable_http_mcp(
     headers: dict[str, str],
     *,
     kind: str,
+    httpx_client_factory: Any = None,
 ) -> dict[str, Any]:
     """Probe Notion/Figma-style remote MCP via Streamable HTTP (session + SSE).
 
@@ -343,10 +346,13 @@ async def probe_streamable_http_mcp(
     from mcp import ClientSession
     from mcp.client.streamable_http import streamablehttp_client
 
+    client_options = {"httpx_client_factory": httpx_client_factory} if httpx_client_factory else {}
     for attempt in range(2):
         try:
             async with (
-                streamablehttp_client(url, headers=headers, timeout=20, sse_read_timeout=20) as (
+                streamablehttp_client(
+                    url, headers=headers, timeout=20, sse_read_timeout=20, **client_options
+                ) as (
                     read,
                     write,
                     _get_session_id,
@@ -531,7 +537,11 @@ def format_probe_exception(exc: BaseException) -> str:
     return msg or type(exc).__name__
 
 
-async def probe_custom_mcp_server(spec: dict[str, Any]) -> dict[str, Any]:
+async def probe_custom_mcp_server(
+    spec: dict[str, Any],
+    *,
+    prepare_spec: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     """Probe one user-defined MCP server (streamable_http or stdio)."""
     from octop.infra.connectors.custom_mcp import harness_spec_for_server, normalize_server_spec
 
@@ -548,6 +558,8 @@ async def probe_custom_mcp_server(spec: dict[str, Any]) -> dict[str, Any]:
         return {"ok": False, "error": str(exc), "error_type": "validation"}
 
     connection = harness_spec_for_server(normalized)
+    if prepare_spec is not None:
+        connection = prepare_spec(connection)
     transport = str(connection.get("transport") or "")
 
     if transport == "streamable_http":
@@ -555,7 +567,12 @@ async def probe_custom_mcp_server(spec: dict[str, Any]) -> dict[str, Any]:
         headers = {str(k): str(v) for k, v in dict(connection.get("headers") or {}).items()}
         # Ensure streamable Accept if caller omitted it.
         headers.setdefault("Accept", "application/json, text/event-stream")
-        result = await probe_streamable_http_mcp(url, headers, kind="custom-mcp")
+        result = await probe_streamable_http_mcp(
+            url,
+            headers,
+            kind="custom-mcp",
+            httpx_client_factory=connection.get("httpx_client_factory"),
+        )
         return await _maybe_attach_oauth_discovery(result, url=url, headers=headers)
 
     if transport == "stdio":
