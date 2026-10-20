@@ -122,3 +122,5 @@ data/
 data-backup-*/
 .playwright-mcp/
 .agents/
+# Local conda environment
+.conda-octop/
