@@ -72,6 +72,17 @@ def test_stream_error_preserves_resource_error_code() -> None:
     assert "12/10" in message
 
 
+def test_stream_error_preserves_nested_plat_relogin_guidance() -> None:
+    error = ExceptionGroup(
+        "unhandled errors in a TaskGroup",
+        [ExceptionGroup("MCP transport", [OctopError.localized(ErrorCode.PLAT_LOGIN_REQUIRED)])],
+    )
+    message, code = _stream_error(error, "zh")
+    assert code == "PLAT_LOGIN_REQUIRED"
+    assert "重新通过 PLAT 登录" in message
+    assert "TaskGroup" not in message
+
+
 def _processor_with_stream(
     stream: Callable[..., AsyncIterator[dict[str, Any]]],
 ) -> tuple[GlobalProcessor, InboundMessage, list[list[Any]]]:

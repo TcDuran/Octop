@@ -388,7 +388,7 @@
     }
   },
   "errors": {
-    "PLAT_LOGIN_REQUIRED": "请通过 PLAT 登录以授权业务工具。",
+    "PLAT_LOGIN_REQUIRED": "PLAT 业务凭证缺失或已失效，请重新通过 PLAT 登录。",
     "PLAT_MCP_CONFIG_INVALID": "PLAT MCP 认证配置冲突或可信地址无效。",
     "AUTH_FAILED": "认证失败。",
     "TOKEN_EXPIRED": "登录已过期，请重新登录。",

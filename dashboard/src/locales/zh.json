@@ -85,7 +85,7 @@
     "notImplemented": "页面建设中。"
   },
   "apiErrors": {
-    "PLAT_LOGIN_REQUIRED": "请通过 PLAT 登录以授权业务工具。",
+    "PLAT_LOGIN_REQUIRED": "PLAT 业务凭证缺失或已失效，请重新通过 PLAT 登录。",
     "PLAT_MCP_CONFIG_INVALID": "PLAT MCP 认证配置冲突或可信地址无效。",
     "AUTH_FAILED": "认证失败。",
     "TOKEN_EXPIRED": "登录已过期，请重新登录。",
@@ -5673,7 +5673,7 @@
     "oidcStartFailed": "无法启动单点登录",
     "ldapHint": "使用{{name}}账号登录",
     "oidcError": {
-      "denied": "已取消单点登录。",
+      "denied": "您没有PLAT助手的使用权限，请联系管理员",
       "state": "单点登录会话已过期，请重试。",
       "disabled": "单点登录不可用。",
       "misconfigured": "单点登录配置有误。",

@@ -2204,7 +2204,10 @@ class AgentManager:
 
             global_env = load_env_file(env_file_path(self._paths.root))
             load_spec = overlay_stdio_spec_env(spec, global_env)
-            raw = await aload_mcp_tools({server_name: load_spec})
+            from octop.infra.connectors.plat_auth import plat_mcp_load_guard
+
+            with plat_mcp_load_guard():
+                raw = await aload_mcp_tools({server_name: load_spec})
             from octop.infra.agents.plugins.plugin_tool_names import (  # noqa: PLC0415
                 sanitize_plugin_tool_names,
             )

@@ -177,6 +177,16 @@ class SsoService:
             from octop.infra.connectors.plat_auth import trusted_urls
 
             trusted_urls(extra)
+            origins = extra.get("plat_embed_origins", [])
+            if not isinstance(origins, list):
+                raise ValueError("plat_embed_origins must be an origin list")
+            for origin in origins:
+                if (
+                    not isinstance(origin, str)
+                    or "*" in origin
+                    or parse_strict_origin(origin) != origin
+                ):
+                    raise ValueError("invalid PLAT embed origin")
 
         dashboard_origin = self._nullable_string(body, "dashboard_origin", current)
         if kind in {"feishu", "dingtalk", "wecom"}:
@@ -212,6 +222,20 @@ class SsoService:
         if public_base is not None:
             return self.get_config_for_kind(kind, public_base=public_base)
         return self._provider_config(provider)
+
+    def start_embed_login(
+        self, *, origin: str, redirect_after: str | None, public_base: str
+    ) -> dict[str, Any]:
+        provider = self._enabled_provider()
+        from octop.infra.connectors.plat_auth import trusted_urls
+
+        if (
+            parse_strict_origin(origin) != origin
+            or origin not in provider.extra.get("plat_embed_origins", [])
+            or not trusted_urls(provider.extra)
+        ):
+            raise ValueError("PLAT embedded login is not allowed for this origin")
+        return self.start_login(redirect_after=redirect_after, public_base=public_base)
 
     def test_connection(self) -> dict[str, bool | str]:
         return self.test_connection_for_kind("oidc")

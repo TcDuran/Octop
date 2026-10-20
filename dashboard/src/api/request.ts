@@ -2,6 +2,8 @@ import { getApiUrl } from "./config";
 import i18n from "../i18n";
 import { markNavigatingAway } from "../utils/reloadOnStaleChunk";
 
+export const PLAT_EMBED_SESSION_KEY = "plat_embed_session";
+
 const AUTH_TOKEN_KEY = "auth_token";
 /** sessionStorage handoff for SSO redirects / popups (default = remember). */
 const AUTH_REMEMBER_PREF_KEY = "auth_remember_pref";
@@ -61,8 +63,9 @@ export function getRememberLoginPreference(): boolean {
  */
 export function isSessionOnlyAuth(): boolean {
   return (
-    sessionStorage.getItem(AUTH_TOKEN_KEY) != null &&
-    localStorage.getItem(AUTH_TOKEN_KEY) == null
+    sessionStorage.getItem(PLAT_EMBED_SESSION_KEY) === "1" ||
+    (sessionStorage.getItem(AUTH_TOKEN_KEY) != null &&
+      localStorage.getItem(AUTH_TOKEN_KEY) == null)
   );
 }
 
@@ -72,7 +75,9 @@ export function isSessionOnlyAuth(): boolean {
  * post the token back to the opener — ``sessionStorage`` is not shared.
  */
 export function setAuthToken(token: string, remember: boolean = true) {
-  if (remember) {
+  if (sessionStorage.getItem(PLAT_EMBED_SESSION_KEY) === "1") {
+    sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+  } else if (remember) {
     localStorage.setItem(AUTH_TOKEN_KEY, token);
     sessionStorage.removeItem(AUTH_TOKEN_KEY);
   } else {
@@ -84,6 +89,9 @@ export function setAuthToken(token: string, remember: boolean = true) {
 
 /** Get JWT token from localStorage or (session-only) sessionStorage. */
 export function getAuthToken(): string {
+  if (sessionStorage.getItem(PLAT_EMBED_SESSION_KEY) === "1") {
+    return sessionStorage.getItem(AUTH_TOKEN_KEY) || "";
+  }
   return (
     localStorage.getItem(AUTH_TOKEN_KEY) ||
     sessionStorage.getItem(AUTH_TOKEN_KEY) ||
@@ -93,7 +101,9 @@ export function getAuthToken(): string {
 
 /** Remove JWT token from both storages. */
 export function clearAuthToken() {
-  localStorage.removeItem(AUTH_TOKEN_KEY);
+  if (sessionStorage.getItem(PLAT_EMBED_SESSION_KEY) !== "1") {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+  }
   sessionStorage.removeItem(AUTH_TOKEN_KEY);
   sessionStorage.removeItem(AUTH_REMEMBER_PREF_KEY);
   localStorage.removeItem("octop:active-agent");

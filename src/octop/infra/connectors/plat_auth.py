@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Any
 from urllib.parse import unquote, urlsplit
 
@@ -61,17 +64,44 @@ def matches_url(url: str, rule: str) -> bool:
     return target[3].startswith(path[:-1]) if path.endswith("/*") else target[3] == path
 
 
+_load_auth_failures: ContextVar[list[OctopError] | None] = ContextVar(
+    "plat_mcp_load_auth_failures", default=None
+)
+
+
+@contextmanager
+def plat_mcp_load_guard() -> Iterator[None]:
+    """Preserve authentication errors swallowed by the harness MCP loader."""
+    failures: list[OctopError] = []
+    token = _load_auth_failures.set(failures)
+    try:
+        yield
+        if failures:
+            raise failures[0]
+    finally:
+        _load_auth_failures.reset(token)
+
+
 def plat_http_client(
     *,
     headers: dict[str, str] | None = None,
     timeout: httpx.Timeout | None = None,
     auth: httpx.Auth | None = None,
 ) -> httpx.AsyncClient:
+    async def check_authorization(response: httpx.Response) -> None:
+        if response.status_code == 401:
+            error = OctopError.localized(ErrorCode.PLAT_LOGIN_REQUIRED)
+            failures = _load_auth_failures.get()
+            if failures is not None:
+                failures.append(error)
+            raise error
+
     return httpx.AsyncClient(
         headers=headers,
         timeout=timeout or httpx.Timeout(30, read=300),
         auth=auth,
         follow_redirects=False,
+        event_hooks={"response": [check_authorization]},
     )
 
 

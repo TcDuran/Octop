@@ -441,3 +441,40 @@ async def test_callback_bind_rejects_identity_owned_by_another_user(
             public_base="https://octop.example",
         )
     assert result.url.endswith("/login?oidc_error=identity_taken")
+
+
+def test_embedded_start_requires_explicit_host_and_plat_binding(service: SsoService) -> None:
+    service._services.user_repo.create(username="admin", role="admin")
+    configure_provider(service)
+    with pytest.raises(ValueError):
+        service.start_embed_login(
+            origin="https://host.example",
+            redirect_after="/chat",
+            public_base="https://octop.example",
+        )
+    service.put_config(
+        {
+            "extra": {
+                "plat_mcp_urls": ["https://hub.example/mcp"],
+                "plat_embed_origins": ["https://host.example"],
+            }
+        }
+    )
+    with patch.object(service, "start_login", return_value={"state": "challenge"}) as start:
+        assert service.start_embed_login(
+            origin="https://host.example",
+            redirect_after="/chat",
+            public_base="https://octop.example",
+        ) == {"state": "challenge"}
+        start.assert_called_once()
+        with pytest.raises(ValueError):
+            service.start_embed_login(
+                origin="https://evil.example",
+                redirect_after="/chat",
+                public_base="https://octop.example",
+            )
+
+
+def test_rejects_wildcard_embed_origins(service: SsoService) -> None:
+    with pytest.raises(ValueError):
+        service.put_config({"extra": {"plat_embed_origins": ["https://*.example"]}})

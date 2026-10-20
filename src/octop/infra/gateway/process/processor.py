@@ -31,7 +31,7 @@ from octop.infra.agents.teams.team_manager import (
 from octop.infra.agents.teams.team_manager import (
     stamp_team_host_chunk as _maybe_stamp_team_host,
 )
-from octop.infra.errors import OctopError
+from octop.infra.errors import ErrorCode, OctopError
 from octop.infra.gateway.cli.events import message_event_to_cli_chunks
 from octop.infra.gateway.hitl.coordinator import (
     HitlAnswerOutcome,
@@ -105,6 +105,12 @@ install_harness_hitl_compat()
 def _stream_error(exc: Exception, locale: str) -> tuple[str, str | None]:
     if isinstance(exc, OctopError):
         return exc.localized_message(locale), exc.code.value
+    if isinstance(exc, ExceptionGroup):
+        for nested in exc.exceptions:
+            if isinstance(nested, Exception):
+                message, code = _stream_error(nested, locale)
+                if code == ErrorCode.PLAT_LOGIN_REQUIRED.value:
+                    return message, code
     return format_stream_error(exc, locale), None
 
 

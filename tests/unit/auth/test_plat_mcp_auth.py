@@ -4,18 +4,53 @@ from __future__ import annotations
 
 import copy
 import time
+from contextlib import suppress
 
 import httpx
 import pytest
 from tests.unit.auth import test_plat_credentials
 
 from octop.infra.auth.plat_credentials import PlatCredential, PlatCredentialStore
-from octop.infra.connectors.plat_auth import PlatMcpAuth, matches_url, trusted_urls
+from octop.infra.connectors.plat_auth import (
+    PlatMcpAuth,
+    matches_url,
+    plat_http_client,
+    plat_mcp_load_guard,
+    trusted_urls,
+)
 from octop.infra.connectors.service import ConnectorService
 from octop.infra.errors import ErrorCode, OctopError
 from octop.infra.users.manager import UserManager
 
 services = test_plat_credentials.services
+
+
+@pytest.mark.asyncio
+async def test_plat_load_guard_preserves_swallowed_transport_error(monkeypatch):
+    monkeypatch.setenv("NO_PROXY", "*")
+    with pytest.raises(OctopError) as error, plat_mcp_load_guard():
+        async with plat_http_client() as client:
+            client._transport = httpx.MockTransport(lambda request: httpx.Response(401))
+            # The harness catches transport failures while discovering tools.
+            with suppress(OctopError):
+                await client.get("https://hub.example/mcp")
+    assert error.value.code == ErrorCode.PLAT_LOGIN_REQUIRED
+    with plat_mcp_load_guard():
+        pass  # The failed load must not contaminate the next one.
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [200, 401, 403])
+async def test_plat_transport_only_maps_authentication_failure(status, monkeypatch):
+    monkeypatch.setenv("NO_PROXY", "*")
+    async with plat_http_client() as client:
+        client._transport = httpx.MockTransport(lambda request: httpx.Response(status))
+        if status == 401:
+            with pytest.raises(OctopError) as error:
+                await client.get("https://hub.example/mcp")
+            assert error.value.code == ErrorCode.PLAT_LOGIN_REQUIRED
+        else:
+            assert (await client.get("https://hub.example/mcp")).status_code == status
 
 
 @pytest.mark.parametrize(

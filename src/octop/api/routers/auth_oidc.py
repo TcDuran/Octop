@@ -27,6 +27,7 @@ router = APIRouter()
 
 class OidcStartBody(BaseModel):
     redirect_after: str | None = None
+    embed_origin: str | None = None
 
 
 class OidcExchangeBody(BaseModel):
@@ -41,6 +42,10 @@ class OidcConfigBody(BaseModel):
     client_secret: str | None = None
     scopes: str | None = None
     dashboard_origin: str | None = None
+    extra: dict[str, Any] | None = Field(
+        default=None,
+        description="Server-only provider extensions, including trusted PLAT Hub URLs.",
+    )
 
 
 def _service(server: Any) -> SsoService:
@@ -52,7 +57,10 @@ def _public_base(request: Request) -> str:
 
 
 def _bad_request(exc: ValueError) -> OctopError:
-    return OctopError.localized(ErrorCode.OIDC_BAD_REQUEST, detail=str(exc))
+    detail = str(exc)
+    return OctopError.localized(
+        ErrorCode.OIDC_BAD_REQUEST, detail=detail, details={"detail": detail}
+    )
 
 
 def _login_error_redirect(server: Any, public_base: str) -> str:
@@ -96,9 +104,10 @@ async def oidc_start(
         started = await asyncio.get_running_loop().run_in_executor(
             None,
             partial(
-                service.start_login,
+                service.start_embed_login if body.embed_origin else service.start_login,
                 redirect_after=body.redirect_after,
                 public_base=_public_base(request),
+                **({"origin": body.embed_origin} if body.embed_origin else {}),
             ),
         )
         state = started.get("state")
@@ -163,10 +172,13 @@ async def put_oidc_config(
     server: Any = Depends(get_server),
 ) -> dict[str, Any]:
     """Create or update OIDC provider settings; the client secret is write-only."""
-    return _service(server).put_config(
-        body.model_dump(exclude_unset=True),
-        public_base=_public_base(request),
-    )
+    try:
+        return _service(server).put_config(
+            body.model_dump(exclude_unset=True),
+            public_base=_public_base(request),
+        )
+    except ValueError as exc:
+        raise _bad_request(exc) from exc
 
 
 @router.post("/oidc/config/test", summary="Test OIDC discovery")

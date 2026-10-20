@@ -57,7 +57,10 @@ def _public_base(request: Request) -> str:
 
 
 def _bad_request(exc: ValueError) -> OctopError:
-    return OctopError.localized(ErrorCode.OIDC_BAD_REQUEST, detail=str(exc))
+    detail = str(exc)
+    return OctopError.localized(
+        ErrorCode.OIDC_BAD_REQUEST, detail=detail, details={"detail": detail}
+    )
 
 
 def _login_error_redirect(server: Any, public_base: str) -> str:
