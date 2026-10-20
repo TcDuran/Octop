@@ -14,6 +14,8 @@ import { apiErrorMessage } from "../../utils/apiError";
 import { applyUserLocale } from "../../utils/locale";
 import { notifySsoOpener } from "../../utils/ssoPopup";
 
+import { PLAT_EMBED_ORIGIN_KEY } from "./PlatEmbed";
+
 const DEFAULT_REDIRECT = "/chat";
 
 /** Return an internal destination, never an absolute or protocol-relative URL. */
@@ -94,6 +96,16 @@ export default function OidcComplete() {
           return;
         }
 
+        const embedOrigin = sessionStorage.getItem(PLAT_EMBED_ORIGIN_KEY);
+        if (embedOrigin && window.parent !== window) {
+          sessionStorage.removeItem(PLAT_EMBED_ORIGIN_KEY);
+          setAuthToken(res.access_token, false);
+          await applyUserLocale(res.user.locale);
+          void refreshServerLabels(res.user.locale);
+          window.parent.postMessage({ type: "plat:ready" }, embedOrigin);
+          navigate(dest, { replace: true });
+          return;
+        }
         const remember = getRememberLoginPreference();
         if (
           notifySsoOpener({

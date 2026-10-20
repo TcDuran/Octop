@@ -60,6 +60,7 @@ from octop.infra.connectors.oauth.registry import (
     oauth_state_kind_for_target,
     oauth_target_requires_https,
 )
+from octop.infra.connectors.plat_auth import PlatMcpAuth
 from octop.infra.connectors.probe import (
     detect_local_weknora,
     prepare_probe_credentials,
@@ -281,6 +282,9 @@ def _connector_service(server: Any) -> ConnectorService:
         secret_repo=server.services.secret_repo,
         settings_repo=server.services.settings_repo,
         config=server.services.config,
+        plat_auth=PlatMcpAuth(
+            server.services.secret_repo, server.services.sso_repo, server.services.user_repo
+        ),
     )
 
 
@@ -663,7 +667,10 @@ async def test_custom_mcp(
             ErrorCode.CONNECTOR_INVALID_CREDENTIALS,
             "provide name or server spec to probe",
         )
-    result = await probe_custom_mcp_server(spec)
+    result = await probe_custom_mcp_server(
+        spec,
+        prepare_spec=lambda spec: svc.prepare_mcp_spec(user.id, spec),
+    )
     if body.name:
         try:
             if result.get("oauth", {}).get("available") and not oauth_configured(spec):
@@ -953,14 +960,18 @@ async def delete_instance(
     _assert_can_manage_connector(inst, user)
     user_id = inst.user_id
     cli_creds: dict[str, Any] | None = None
-    if inst.kind in ("feishu-cli", "wecom-cli", "agently-cli") and inst.has_credentials:
+    if (
+        inst.kind in ("feishu-cli", "wecom-cli", "agently-cli", "dingtalk-cli")
+        and inst.has_credentials
+    ):
         try:
             cli_creds = _connector_service(server).decrypt(instance_id)
         except Exception:
             cli_creds = {"instance_id": instance_id}
         else:
             cli_creds = {**cli_creds, "instance_id": instance_id}
-    if inst.kind == "agently-cli":
+    # Device-login CLIs: cancel a pending login and revoke the grant before deleting.
+    if inst.kind in ("agently-cli", "dingtalk-cli"):
         result = await _connector_service(server).agently_auth_for_instance(
             instance_id, inst.user_id, "disconnect", locale=resolve_request_locale(request)
         )
@@ -975,7 +986,7 @@ async def delete_instance(
             await _connector_service(server).disconnect_qcc(instance_id)
         except ValueError as exc:
             raise OctopError(ErrorCode.CONNECTOR_INVALID_CREDENTIALS, str(exc)) from exc
-    elif inst.kind != "agently-cli":
+    elif inst.kind not in ("agently-cli", "dingtalk-cli"):
         repo.delete(instance_id)
     if cli_creds is not None:
         cleanup_creds_cli_dirs(inst.kind, cli_creds)
@@ -1008,7 +1019,10 @@ async def test_instance(
         raw = saved.get(synthetic_name)
         if not isinstance(raw, dict):
             raise OctopError(ErrorCode.CONNECTOR_NOT_FOUND, f"instance {instance_id!r} not found")
-        return await probe_custom_mcp_server(dict(raw))
+        return await probe_custom_mcp_server(
+            dict(raw),
+            prepare_spec=lambda spec: svc.prepare_mcp_spec(user.id, spec),
+        )
 
     repo = server.services.repos.connector_repo
     inst = repo.get(instance_id)
@@ -1183,8 +1197,11 @@ class FeishuUserAuthInstanceCompleteBody(BaseModel):
 @router.post(
     "/connector-instances/{instance_id}/agently-auth/start",
     response_model=AgentlyAuthResponse,
-    summary="Start Agent Mail device authorization",
-    description="Owner only. Starts one bounded background login for this saved instance.",
+    summary="Start CLI device authorization",
+    description=(
+        "Owner only. Agent Mail or DingTalk CLI instances. "
+        "Starts one bounded background login for this saved instance."
+    ),
 )
 async def agently_auth_start(
     instance_id: str,
@@ -1201,8 +1218,11 @@ async def agently_auth_start(
 @router.get(
     "/connector-instances/{instance_id}/agently-auth/status",
     response_model=AgentlyAuthResponse,
-    summary="Read Agent Mail authorization status",
-    description="Owner only. Poll a device login or check stored authorization without exposing tokens.",
+    summary="Read CLI authorization status",
+    description=(
+        "Owner only. Agent Mail or DingTalk CLI instances. "
+        "Poll a device login or check stored authorization without exposing tokens."
+    ),
 )
 async def agently_auth_status(
     instance_id: str,
@@ -1222,8 +1242,11 @@ async def agently_auth_status(
 @router.post(
     "/connector-instances/{instance_id}/agently-auth/logout",
     response_model=AgentlyAuthResponse,
-    summary="Log out of Agent Mail",
-    description="Owner only. Cancels pending login, clears the CLI grant and attempts revocation.",
+    summary="Log out of a CLI connector",
+    description=(
+        "Owner only. Agent Mail or DingTalk CLI instances. "
+        "Cancels pending login, clears the CLI grant and attempts revocation."
+    ),
 )
 async def agently_auth_logout(
     instance_id: str,
@@ -1242,8 +1265,11 @@ async def agently_auth_logout(
 @router.post(
     "/connector-instances/{instance_id}/agently-auth/refresh",
     response_model=AgentlyAuthResponse,
-    summary="Refresh Agent Mail authorization",
-    description="Owner only. Refreshes the saved CLI grant and returns sanitized authorization status.",
+    summary="Refresh CLI authorization",
+    description=(
+        "Owner only. Agent Mail or DingTalk CLI instances. "
+        "Refreshes the saved CLI grant and returns sanitized authorization status."
+    ),
 )
 async def agently_auth_refresh(
     instance_id: str,

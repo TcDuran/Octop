@@ -220,6 +220,12 @@ export const authApi = {
       body: JSON.stringify({ redirect_after }),
     }),
 
+  startPlatEmbed: (embed_origin: string) =>
+    request<{ authorization_url: string; state: string }>("/auth/oidc/start", {
+      method: "POST",
+      body: JSON.stringify({ embed_origin, redirect_after: "/chat" }),
+    }),
+
   /** Start an OAuth/OIDC authorization-code login flow by provider kind. */
   startOauth: (kind: string, redirect_after?: string) =>
     request<{ authorization_url: string }>("/auth/oauth/start", {

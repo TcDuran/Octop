@@ -6,7 +6,7 @@ import asyncio
 import logging
 import secrets
 import time
-from collections.abc import Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from functools import partial
 from typing import Any
@@ -47,9 +47,16 @@ class RedirectResult:
 class SsoService:
     """Coordinates SSO configuration and browser login / bind flows."""
 
-    def __init__(self, services: SharedServices, user_manager: UserManager) -> None:
+    def __init__(
+        self,
+        services: SharedServices,
+        user_manager: UserManager,
+        *,
+        on_plat_login: Callable[[int], Awaitable[None]] | None = None,
+    ) -> None:
         self._services = services
         self._user_manager = user_manager
+        self._on_plat_login = on_plat_login
         self._discovery = DiscoveryCache()
         self._adapters: dict[str, IdentityProvider] = build_adapters(self)
 
@@ -166,6 +173,21 @@ class SsoService:
         elif kind == "dingtalk":
             extra = {}
 
+        if kind == "oidc":
+            from octop.infra.connectors.plat_auth import trusted_urls
+
+            trusted_urls(extra)
+            origins = extra.get("plat_embed_origins", [])
+            if not isinstance(origins, list):
+                raise ValueError("plat_embed_origins must be an origin list")
+            for origin in origins:
+                if (
+                    not isinstance(origin, str)
+                    or "*" in origin
+                    or parse_strict_origin(origin) != origin
+                ):
+                    raise ValueError("invalid PLAT embed origin")
+
         dashboard_origin = self._nullable_string(body, "dashboard_origin", current)
         if kind in {"feishu", "dingtalk", "wecom"}:
             dashboard_origin = parse_strict_origin(dashboard_origin)
@@ -200,6 +222,20 @@ class SsoService:
         if public_base is not None:
             return self.get_config_for_kind(kind, public_base=public_base)
         return self._provider_config(provider)
+
+    def start_embed_login(
+        self, *, origin: str, redirect_after: str | None, public_base: str
+    ) -> dict[str, Any]:
+        provider = self._enabled_provider()
+        from octop.infra.connectors.plat_auth import trusted_urls
+
+        if (
+            parse_strict_origin(origin) != origin
+            or origin not in provider.extra.get("plat_embed_origins", [])
+            or not trusted_urls(provider.extra)
+        ):
+            raise ValueError("PLAT embedded login is not allowed for this origin")
+        return self.start_login(redirect_after=redirect_after, public_base=public_base)
 
     def test_connection(self) -> dict[str, bool | str]:
         return self.test_connection_for_kind("oidc")
@@ -286,16 +322,32 @@ class SsoService:
         redirect_uri = build_redirect_uri(public_base, adapter.callback_path)
 
         try:
-            subject, claims = await asyncio.get_running_loop().run_in_executor(
-                None,
-                partial(
-                    adapter.complete_login,
-                    code,
-                    row=provider,
-                    login_state=login_state,
-                    redirect_uri=redirect_uri,
-                ),
-            )
+            from octop.infra.auth.sso.providers.oidc import OidcAdapter
+            from octop.infra.connectors.plat_auth import trusted_urls
+
+            credential = None
+            if isinstance(adapter, OidcAdapter) and trusted_urls(provider.extra):
+                subject, claims, credential = await asyncio.get_running_loop().run_in_executor(
+                    None,
+                    partial(
+                        adapter.complete_plat_login,
+                        code,
+                        row=provider,
+                        login_state=login_state,
+                        redirect_uri=redirect_uri,
+                    ),
+                )
+            else:
+                subject, claims = await asyncio.get_running_loop().run_in_executor(
+                    None,
+                    partial(
+                        adapter.complete_login,
+                        code,
+                        row=provider,
+                        login_state=login_state,
+                        redirect_uri=redirect_uri,
+                    ),
+                )
         except jwt.InvalidTokenError:
             logger.exception("SSO callback returned an invalid token (kind=%s)", provider.kind)
             return self._error_redirect(frontend, "invalid_token")
@@ -325,6 +377,24 @@ class SsoService:
             return self._error_redirect(frontend, "generic")
         except Exception:
             return self._error_redirect(frontend, "generic")
+
+        if credential is not None:
+            from octop.infra.auth.plat_credentials import PlatCredentialStore
+
+            try:
+                if self._on_plat_login is None:
+                    raise RuntimeError("PLAT connector reload is not configured")
+                await asyncio.to_thread(
+                    PlatCredentialStore(self._services.secret_repo).save,
+                    user.id,
+                    provider.id,
+                    credential,
+                )
+                await self._on_plat_login(user.id)
+            except Exception:
+                # Do not include exceptions or token responses in logs.
+                logger.error("PLAT credential save/reload failed user_id=%s", user.id)
+                return self._error_redirect(frontend, "generic")
 
         login_code = secrets.token_urlsafe(32)
         self._services.sso_repo.attach_login_code(
@@ -431,6 +501,26 @@ class SsoService:
         public_base: str | None = None,
         redirect_uri: str | None = None,
     ) -> dict[str, Any]:
+        claims, _token, _requested_at = self._exchange_result(
+            provider,
+            code,
+            code_verifier,
+            nonce,
+            public_base,
+            redirect_uri,
+        )
+        return claims
+
+    def _exchange_result(
+        self,
+        provider: SsoProviderRow,
+        code: str,
+        code_verifier: str,
+        nonce: str,
+        public_base: str | None = None,
+        redirect_uri: str | None = None,
+    ) -> tuple[dict[str, Any], dict[str, Any], int]:
+        requested_at = int(time.time())
         uri = redirect_uri or build_redirect_uri(public_base or "")
         with self._http_client() as client:
             discovery = self._discovery.get(provider.issuer, httpx_client=client)
@@ -447,7 +537,7 @@ class SsoService:
             id_token = token.get("id_token") if isinstance(token, dict) else None
             if not isinstance(id_token, str):
                 raise jwt.InvalidTokenError("token response has no ID token")
-            return verify_id_token(
+            claims = verify_id_token(
                 id_token,
                 jwks_uri=jwks_uri,
                 issuer=self._endpoint(discovery, "issuer"),
@@ -455,6 +545,7 @@ class SsoService:
                 nonce=nonce,
                 httpx=client,
             )
+            return claims, token, requested_at
 
     @staticmethod
     def _string(

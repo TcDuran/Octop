@@ -53,6 +53,25 @@ describe("auth token remember / session-only", () => {
     expect(sessionStorage.getItem("auth_token")).toBe("renewed");
   });
 
+  it("isolates embedded login and renewal from the standalone token", () => {
+    mod.setAuthToken("standalone");
+    sessionStorage.setItem(mod.PLAT_EMBED_SESSION_KEY, "1");
+    expect(mod.getAuthToken()).toBe("");
+    mod.setAuthToken("embedded", false);
+    expect(mod.getAuthToken()).toBe("embedded");
+    expect(localStorage.getItem("auth_token")).toBe("standalone");
+    mod.applyRenewedAccessToken(
+      new Response(null, {
+        headers: { "X-Octop-Access-Token": "renewed-embedded" },
+      }),
+    );
+    expect(mod.getAuthToken()).toBe("renewed-embedded");
+    expect(localStorage.getItem("auth_token")).toBe("standalone");
+    mod.clearAuthToken();
+    expect(mod.getAuthToken()).toBe("");
+    expect(localStorage.getItem("auth_token")).toBe("standalone");
+  });
+
   it("reads and writes the SSO remember preference", () => {
     expect(mod.getRememberLoginPreference()).toBe(true);
     mod.setRememberLoginPreference(false);

@@ -2,6 +2,8 @@ import { getApiUrl } from "./config";
 import i18n from "../i18n";
 import { markNavigatingAway } from "../utils/reloadOnStaleChunk";
 
+export const PLAT_EMBED_SESSION_KEY = "plat_embed_session";
+
 const AUTH_TOKEN_KEY = "auth_token";
 /** sessionStorage handoff for SSO redirects / popups (default = remember). */
 const AUTH_REMEMBER_PREF_KEY = "auth_remember_pref";
@@ -61,8 +63,9 @@ export function getRememberLoginPreference(): boolean {
  */
 export function isSessionOnlyAuth(): boolean {
   return (
-    sessionStorage.getItem(AUTH_TOKEN_KEY) != null &&
-    localStorage.getItem(AUTH_TOKEN_KEY) == null
+    sessionStorage.getItem(PLAT_EMBED_SESSION_KEY) === "1" ||
+    (sessionStorage.getItem(AUTH_TOKEN_KEY) != null &&
+      localStorage.getItem(AUTH_TOKEN_KEY) == null)
   );
 }
 
@@ -72,7 +75,9 @@ export function isSessionOnlyAuth(): boolean {
  * post the token back to the opener — ``sessionStorage`` is not shared.
  */
 export function setAuthToken(token: string, remember: boolean = true) {
-  if (remember) {
+  if (sessionStorage.getItem(PLAT_EMBED_SESSION_KEY) === "1") {
+    sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+  } else if (remember) {
     localStorage.setItem(AUTH_TOKEN_KEY, token);
     sessionStorage.removeItem(AUTH_TOKEN_KEY);
   } else {
@@ -84,6 +89,9 @@ export function setAuthToken(token: string, remember: boolean = true) {
 
 /** Get JWT token from localStorage or (session-only) sessionStorage. */
 export function getAuthToken(): string {
+  if (sessionStorage.getItem(PLAT_EMBED_SESSION_KEY) === "1") {
+    return sessionStorage.getItem(AUTH_TOKEN_KEY) || "";
+  }
   return (
     localStorage.getItem(AUTH_TOKEN_KEY) ||
     sessionStorage.getItem(AUTH_TOKEN_KEY) ||
@@ -93,7 +101,9 @@ export function getAuthToken(): string {
 
 /** Remove JWT token from both storages. */
 export function clearAuthToken() {
-  localStorage.removeItem(AUTH_TOKEN_KEY);
+  if (sessionStorage.getItem(PLAT_EMBED_SESSION_KEY) !== "1") {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+  }
   sessionStorage.removeItem(AUTH_TOKEN_KEY);
   sessionStorage.removeItem(AUTH_REMEMBER_PREF_KEY);
   localStorage.removeItem("octop:active-agent");
@@ -302,6 +312,9 @@ function buildAuthHeaders(path: string): Record<string, string> {
 
 let _redirectingToLogin = false;
 
+/** 401 codes that mean this Octop session is no longer valid. */
+const SESSION_UNAUTHORIZED_CODES = new Set(["AUTH_FAILED", "TOKEN_EXPIRED"]);
+
 /**
  * Send the user to the login screen exactly once, no matter how many parallel
  * requests report an expired session.
@@ -330,11 +343,32 @@ function handleUnauthorized(): void {
  * Handle 401 responses: clear token, redirect to login, and throw.
  * Shared by request(), requestBlob(), and requestUpload().
  */
+async function errorCodeOf(response: Response): Promise<string | undefined> {
+  try {
+    const body = (await response.clone().json()) as {
+      error?: { code?: string };
+    };
+    const code = body?.error?.code;
+    return typeof code === "string" && code.trim() ? code : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 async function throwIfUnauthorized(
   path: string,
   response: Response,
 ): Promise<void> {
   if (response.status !== 401 || path.startsWith("/auth/")) {
+    return;
+  }
+  const code = await errorCodeOf(response);
+  // Business 401s (peer login, etc.) are not a dead local session.
+  if (
+    code &&
+    !SESSION_UNAUTHORIZED_CODES.has(code) &&
+    !path.startsWith("/setup/")
+  ) {
     return;
   }
   clearAuthToken();

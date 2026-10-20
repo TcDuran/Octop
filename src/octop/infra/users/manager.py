@@ -404,6 +404,9 @@ class UserManager:
                     ErrorCode.SSO_UNBIND_REQUIRES_PASSWORD,
                     "set a password before unlinking single sign-on",
                 )
+            from octop.infra.auth.plat_credentials import PlatCredentialStore
+
+            PlatCredentialStore(self._services.secret_repo).delete(row.id, provider.id)
             self._services.user_repo.remove_sso_identity(row.id, provider_id=provider.id)
             self._services.audit_repo.write(
                 actor=row.username, action="user.sso_unbind", target=row.username
@@ -792,6 +795,10 @@ class UserManager:
         async with self._lock:
             self._users.pop(username, None)
         await asyncio.to_thread(self._remove_user_files, row.id, row.username)
+        from octop.infra.auth.plat_credentials import PlatCredentialStore
+
+        for identity in self._services.user_repo.list_sso_identities(row.id):
+            PlatCredentialStore(self._services.secret_repo).delete(row.id, identity.provider_id)
         self._services.user_repo.delete(row.id)
         self._services.audit_repo.write(actor=ACTOR_ADMIN, action="user.delete", target=username)
 

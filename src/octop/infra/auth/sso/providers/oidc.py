@@ -8,6 +8,7 @@ from urllib.parse import urlencode
 import httpx
 import jwt
 
+from octop.infra.auth.plat_credentials import PlatCredential
 from octop.infra.auth.sso.public_base import oidc_callback_path
 from octop.infra.db.repos.sso import SsoLoginStateRow, SsoProviderRow
 
@@ -71,6 +72,26 @@ class OidcAdapter:
         if not isinstance(subject, str) or not subject:
             raise jwt.InvalidTokenError("token response has no subject")
         return subject, claims
+
+    def complete_plat_login(
+        self,
+        code: str,
+        *,
+        row: SsoProviderRow,
+        login_state: SsoLoginStateRow,
+        redirect_uri: str,
+    ) -> tuple[str, dict[str, Any], PlatCredential]:
+        claims, token, requested_at = self._service._exchange_result(
+            row,
+            code,
+            login_state.code_verifier,
+            login_state.nonce,
+            redirect_uri=redirect_uri,
+        )
+        subject = claims.get("sub")
+        if not isinstance(subject, str) or not subject:
+            raise jwt.InvalidTokenError("token response has no subject")
+        return subject, claims, PlatCredential.from_response(token, row, subject, requested_at)
 
     def test_connection(self, row: SsoProviderRow) -> dict[str, bool | str]:
         self._service._discovery.invalidate(row.issuer)

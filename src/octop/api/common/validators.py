@@ -43,6 +43,7 @@ async def validate_chat_mcp_servers(
         return None
     if not names:
         return []
+    from octop.infra.connectors.plat_auth import PlatMcpAuth
     from octop.infra.connectors.service import ConnectorService
 
     svc = ConnectorService(
@@ -50,6 +51,9 @@ async def validate_chat_mcp_servers(
         secret_repo=server.services.secret_repo,
         settings_repo=server.services.settings_repo,
         config=server.services.config,
+        plat_auth=PlatMcpAuth(
+            server.services.secret_repo, server.services.sso_repo, server.services.user_repo
+        ),
     )
     try:
         return list(svc.validate_mcp_servers_for_user(user_id, names))

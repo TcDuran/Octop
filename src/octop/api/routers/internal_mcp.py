@@ -14,6 +14,7 @@ from mcp.shared.version import SUPPORTED_PROTOCOL_VERSIONS
 
 from octop.api.deps import get_server
 from octop.infra.connectors.gateway.protocol import handle_mcp_request
+from octop.infra.connectors.plat_auth import PlatMcpAuth
 from octop.infra.connectors.service import ConnectorService
 from octop.infra.errors import ErrorCode, OctopError
 
@@ -31,6 +32,9 @@ def _service(server: Any) -> ConnectorService:
         secret_repo=server.services.secret_repo,
         settings_repo=server.services.settings_repo,
         config=server.services.config,
+        plat_auth=PlatMcpAuth(
+            server.services.secret_repo, server.services.sso_repo, server.services.user_repo
+        ),
     )
 
 

@@ -1,0 +1,44 @@
+# Local PLAT integration only. Keep the existing loopback issuer reachable from
+# Octop's container without changing its OIDC code or existing identity bindings.
+# Start after Octop: docker compose -f docker/docker-compose.oidc-local.yml up -d
+# PLAT must listen on the host at port 8080.
+# If Octop is recreated, recreate this container too so it joins the new network:
+# docker compose -f docker/docker-compose.oidc-local.yml up -d --force-recreate
+# Production should use a provider hostname reachable from browser and container.
+services:
+  plat-oidc-loopback:
+    image: octop:latest
+    container_name: octop-plat-oidc-loopback
+    restart: unless-stopped
+    network_mode: container:octop
+    entrypoint: ["python", "-u", "-c"]
+    command:
+      - |
+        import asyncio
+
+        async def forward(reader, writer):
+            try:
+                while data := await reader.read(65536):
+                    writer.write(data)
+                    await writer.drain()
+            finally:
+                writer.close()
+
+        async def connect(reader, writer):
+            try:
+                remote_reader, remote_writer = await asyncio.open_connection(
+                    "host.docker.internal", 8080
+                )
+                await asyncio.gather(
+                    forward(reader, remote_writer), forward(remote_reader, writer)
+                )
+            except (OSError, ConnectionError) as error:
+                print(f"PLAT forwarding failed: {error}", flush=True)
+                writer.close()
+
+        async def main():
+            server = await asyncio.start_server(connect, "127.0.0.1", 8080)
+            async with server:
+                await server.serve_forever()
+
+        asyncio.run(main())

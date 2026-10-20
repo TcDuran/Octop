@@ -117,3 +117,10 @@ scripts/lh_image_install_octop_tencentos.sh
 
 # Local runtime data volume (docker/.env OCTOP_DATA)
 data/
+
+# Local integration backups and browser/agent state
+data-backup-*/
+.playwright-mcp/
+.agents/
+# Local conda environment
+.conda-octop/

@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+from octop.api.routers.auth_oidc import _bad_request
 from octop.infra.auth.sso.service import RedirectResult, SsoService
 from tests.support.auth import bearer, bootstrap_admin, login
 
@@ -132,3 +133,35 @@ async def test_oidc_config_requires_admin_and_returns_public_callback_url(
     tested = await c.post("/api/auth/oidc/config/test", headers=bearer(token))
     assert tested.status_code == 200
     assert tested.json() == {"ok": True, "detail": "reachable"}
+
+
+async def test_oidc_config_persists_and_validates_trusted_hub_urls(client) -> None:
+    c, srv, home = client
+    await bootstrap_admin(c, home)
+    headers = bearer(await login(c))
+    urls = ["https://hub.example/service/*"]
+    response = await c.put(
+        "/api/auth/oidc/config", headers=headers, json={"extra": {"plat_mcp_urls": urls}}
+    )
+    assert response.status_code == 200
+    provider = srv.services.sso_repo.get_by_kind("oidc")
+    assert provider is not None
+    assert provider.extra["plat_mcp_urls"] == urls
+
+    response = await c.put(
+        "/api/auth/oidc/config",
+        headers=headers,
+        json={"extra": {"plat_mcp_urls": ["https://*.example/service/*"]}},
+    )
+    assert response.status_code == 400
+    provider = srv.services.sso_repo.get_by_kind("oidc")
+    assert provider is not None
+    assert provider.extra["plat_mcp_urls"] == urls
+
+
+def test_oidc_bad_request_keeps_detail_when_localized() -> None:
+    error = _bad_request(ValueError("PLAT embedded login is not allowed for this origin"))
+
+    assert error.to_envelope(locale="zh")["error"]["message"] == (
+        "OIDC 请求无效：PLAT embedded login is not allowed for this origin"
+    )
