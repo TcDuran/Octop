@@ -112,6 +112,7 @@ fnos/native/app/site-packages/
 
 # Local agent planning docs (not for upstream)
 /docs/
+/tests/
 docs/superpowers/
 scripts/lh_image_install_octop_tencentos.sh
 .worktrees/

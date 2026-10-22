@@ -26,11 +26,6 @@ import { HighlightedCode } from "./syntaxHighlight";
 import { useMathPlugins } from "./mathPlugins";
 import { stabilizeStreamingMarkdown } from "./stabilizeStreamingMarkdown";
 import styles from "./index.module.less";
-import {
-  publicApiUrl,
-  withBasePath,
-  withoutBasePath,
-} from "../../utils/deploymentPath";
 
 function ConversationLink({
   href,
@@ -44,11 +39,9 @@ function ConversationLink({
       const url = new URL(href, window.location.origin);
       if (
         url.origin === window.location.origin &&
-        /^\/chat\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/.test(
-          withoutBasePath(url.pathname),
-        )
+        /^\/chat\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/.test(url.pathname)
       ) {
-        chatPath = withoutBasePath(url.pathname) + url.search + url.hash;
+        chatPath = url.pathname + url.search + url.hash;
       }
     } catch {
       /* Keep malformed/external links on the existing path. */
@@ -63,7 +56,7 @@ function ConversationLink({
   return (
     <a
       {...props}
-      href={chatPath ? withBasePath(chatPath) : publicApiUrl(href || "")}
+      href={href}
       target={chatPath ? undefined : "_blank"}
       rel="noreferrer"
     >
@@ -207,7 +200,7 @@ function MarkdownImage({
   alt,
   ...props
 }: { src?: string; alt?: string } & ImgHTMLAttributes<HTMLImageElement>) {
-  const resolved = publicApiUrl(resolveImageSrc(src || ""));
+  const resolved = resolveImageSrc(src || "");
   const [imgSrc, setImgSrc] = useState(resolved);
   const failed = useRef(false);
 
