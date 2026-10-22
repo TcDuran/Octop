@@ -12,6 +12,7 @@ import {
   type ImgHTMLAttributes,
 } from "react";
 import ReactMarkdown from "react-markdown";
+import { Link, useInRouterContext } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 import { useTranslation } from "react-i18next";
 import {
@@ -25,6 +26,51 @@ import { HighlightedCode } from "./syntaxHighlight";
 import { useMathPlugins } from "./mathPlugins";
 import { stabilizeStreamingMarkdown } from "./stabilizeStreamingMarkdown";
 import styles from "./index.module.less";
+import {
+  publicApiUrl,
+  withBasePath,
+  withoutBasePath,
+} from "../../utils/deploymentPath";
+
+function ConversationLink({
+  href,
+  children,
+  ...props
+}: AnchorHTMLAttributes<HTMLAnchorElement>) {
+  const inRouter = useInRouterContext();
+  let chatPath: string | undefined;
+  if (href) {
+    try {
+      const url = new URL(href, window.location.origin);
+      if (
+        url.origin === window.location.origin &&
+        /^\/chat\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+$/.test(
+          withoutBasePath(url.pathname),
+        )
+      ) {
+        chatPath = withoutBasePath(url.pathname) + url.search + url.hash;
+      }
+    } catch {
+      /* Keep malformed/external links on the existing path. */
+    }
+  }
+  if (chatPath && inRouter)
+    return (
+      <Link {...props} to={chatPath}>
+        {children}
+      </Link>
+    );
+  return (
+    <a
+      {...props}
+      href={chatPath ? withBasePath(chatPath) : publicApiUrl(href || "")}
+      target={chatPath ? undefined : "_blank"}
+      rel="noreferrer"
+    >
+      {children}
+    </a>
+  );
+}
 
 /* ---- Mermaid block component ---- */
 function MermaidBlock({ code }: { code: string }) {
@@ -161,7 +207,7 @@ function MarkdownImage({
   alt,
   ...props
 }: { src?: string; alt?: string } & ImgHTMLAttributes<HTMLImageElement>) {
-  const resolved = resolveImageSrc(src || "");
+  const resolved = publicApiUrl(resolveImageSrc(src || ""));
   const [imgSrc, setImgSrc] = useState(resolved);
   const failed = useRef(false);
 
@@ -419,9 +465,9 @@ const Markdown = memo(function Markdown({
               );
             }
             return (
-              <a href={href} target="_blank" rel="noreferrer" {...props}>
+              <ConversationLink href={href} {...props}>
                 {children}
-              </a>
+              </ConversationLink>
             );
           },
 

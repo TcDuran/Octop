@@ -527,7 +527,8 @@
     "LOCAL_DOWNLOAD_UNAVAILABLE": "仅在本机打开 Octop 时才能保存到系统「下载」文件夹。",
     "SKILL_PACKAGE_COPY_DENIED": "该技能包的创建者已禁止复制其中的技能。",
     "SKILL_PACKAGE_DOWNLOAD_DENIED": "该技能包已禁止打包下载。",
-    "SKILL_PACKAGE_LOCKED": "此技能复制自锁定策略的技能包，无法在工作区编辑。"
+    "SKILL_PACKAGE_LOCKED": "此技能复制自锁定策略的技能包，无法在工作区编辑。",
+    "AUTOMATION_ANALYSIS_CONFLICT": "分析状态或权限不允许此操作，请查看任务状态。"
   },
   "desktop": {
     "install_log_deps": "正在安装 Python 依赖…",
@@ -648,7 +649,9 @@
     "generate_image": "生成图片",
     "generate_video": "生成视频",
     "bilibili_search_anime": "搜索番剧",
-    "search_arxiv": "查询 arXiv 论文"
+    "search_arxiv": "查询 arXiv 论文",
+    "sync_analysis_items": "登记与查询事项",
+    "dispatch_analysis_task": "安排事项分析"
   },
   "plugins": {
     "arxiv_search": {
@@ -1002,5 +1005,26 @@
     "error_exited": "laya-serve 在就绪前退出了。",
     "error_not_installed": "尚未安装 Laya。",
     "error_stalled": "安装长时间没有结果，已停止。"
+  },
+  "analysis": {
+    "scan_required": "请在查询成功的自动化扫描回合使用此工具。",
+    "owner_changed": "自动化的所有者或智能体已变化。",
+    "fixed_target_required": "分析需要使用固定会话的智能体自动化。",
+    "target_changed": "目标会话已改绑或删除。",
+    "obsolete": "此分析任务已不再适用。",
+    "parent_disabled": "扫描自动化已停用。",
+    "dashboard_required": "请使用网页聊天会话作为扫描总览。",
+    "incomplete": "请完整查询本次关注范围后再登记事项。",
+    "sync_required": "请先在本轮扫描登记该待处理事项及版本。",
+    "active_or_uncertain": "已有分析正在执行或状态需要核实。",
+    "already_attempted": "此版本已有分析记录；失败任务请手动重试。",
+    "limit": "本轮已达到五项新分析的上限。",
+    "prompt_too_long": "分析指令与事项信息、执行约束合计超过定时任务的 {limit} 字符上限，请缩短分析指令后重试。",
+    "not_scheduled": "分析任务未能成功排入调度。",
+    "queued": "分析已排队，尚未完成。",
+    "retry_not_allowed": "仅最近一次失败、错过或中断的分析允许重试。",
+    "already_running": "此分析已开始执行。",
+    "tool_blocked": "自动分析中不可使用此工具。",
+    "tool_failed": "分析工具调用失败，已保留最近成功成果。"
   }
 }

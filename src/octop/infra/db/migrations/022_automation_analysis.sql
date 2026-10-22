@@ -1,0 +1,26 @@
+-- Persistent automation items; content and execution results remain in threads/Cron.
+CREATE TABLE IF NOT EXISTS automation_analysis_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id TEXT NOT NULL UNIQUE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    agent_id TEXT NOT NULL REFERENCES agents(agent_id) ON DELETE CASCADE,
+    parent_cron_id TEXT REFERENCES cron_jobs(cron_id) ON DELETE SET NULL,
+    source_key TEXT NOT NULL,
+    source_item_key TEXT NOT NULL,
+    business_status TEXT NOT NULL DEFAULT 'unknown'
+        CHECK (business_status IN ('pending', 'handled', 'closed', 'unknown')),
+    source_version TEXT NOT NULL,
+    observed_at INTEGER NOT NULL,
+    session_key TEXT UNIQUE,
+    thread_id TEXT REFERENCES threads(thread_id) ON DELETE SET NULL,
+    analysis_cron_id TEXT UNIQUE,
+    analysis_version TEXT,
+    last_success_version TEXT,
+    dispatch_state TEXT NOT NULL DEFAULT 'idle'
+        CHECK (dispatch_state IN ('idle', 'preparing', 'queued', 'running', 'finished', 'interrupted')),
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE(parent_cron_id, source_key, source_item_key)
+);
+CREATE INDEX IF NOT EXISTS idx_analysis_parent_status ON automation_analysis_items(parent_cron_id, business_status);
+UPDATE _schema_version SET version = 22;

@@ -224,7 +224,8 @@
     "LOCAL_DOWNLOAD_UNAVAILABLE": "Saving to the host Downloads folder is only available when Octop is opened on this computer.",
     "SKILL_PACKAGE_COPY_DENIED": "The creator of this skill package has disabled copying its skills.",
     "SKILL_PACKAGE_DOWNLOAD_DENIED": "Downloading this skill package is disabled.",
-    "SKILL_PACKAGE_LOCKED": "This skill was copied from a locked skill package and cannot be edited in the workspace."
+    "SKILL_PACKAGE_LOCKED": "This skill was copied from a locked skill package and cannot be edited in the workspace.",
+    "AUTOMATION_ANALYSIS_CONFLICT": "The analysis state or permissions do not allow this operation. Check the task status."
   },
   "nav": {
     "chat": "Conversation",
@@ -1849,7 +1850,9 @@
     "generate_image": "Generate image",
     "generate_video": "Generate video",
     "bilibili_search_anime": "Search Bilibili anime",
-    "search_arxiv": "Search arXiv papers"
+    "search_arxiv": "Search arXiv papers",
+    "sync_analysis_items": "Register and query analysis items",
+    "dispatch_analysis_task": "Arrange item analysis"
   },
   "toolSettings": {
     "title": "Tool settings",

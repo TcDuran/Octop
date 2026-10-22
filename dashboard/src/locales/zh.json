@@ -224,7 +224,8 @@
     "LOCAL_DOWNLOAD_UNAVAILABLE": "仅在本机打开 Octop 时才能保存到系统「下载」文件夹。",
     "SKILL_PACKAGE_COPY_DENIED": "该技能包的创建者已禁止复制其中的技能。",
     "SKILL_PACKAGE_DOWNLOAD_DENIED": "该技能包已禁止打包下载。",
-    "SKILL_PACKAGE_LOCKED": "此技能复制自锁定策略的技能包，无法在工作区编辑。"
+    "SKILL_PACKAGE_LOCKED": "此技能复制自锁定策略的技能包，无法在工作区编辑。",
+    "AUTOMATION_ANALYSIS_CONFLICT": "分析状态或权限不允许此操作，请查看任务状态。"
   },
   "nav": {
     "chat": "对话",
@@ -1849,7 +1850,9 @@
     "generate_image": "生成图片",
     "generate_video": "生成视频",
     "bilibili_search_anime": "搜索番剧",
-    "search_arxiv": "查询 arXiv 论文"
+    "search_arxiv": "查询 arXiv 论文",
+    "sync_analysis_items": "登记与查询事项",
+    "dispatch_analysis_task": "安排事项分析"
   },
   "toolSettings": {
     "title": "工具设置",

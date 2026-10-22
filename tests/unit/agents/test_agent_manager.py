@@ -877,6 +877,8 @@ def test_build_harness_config_includes_cronjob_tools_when_cron_manager_set(
     assert cfg.tools is not None
     names = {t.name for t in cfg.tools}
     assert names == {
+        "sync_analysis_items",
+        "dispatch_analysis_task",
         "cronjob_list",
         "cronjob_get",
         "cronjob_create",

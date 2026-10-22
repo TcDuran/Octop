@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Any, cast
+from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
+from pydantic import AfterValidator, BaseModel, Field
 
 from octop.api.common.agent import assert_agent_access, require_agent_row, user_owns_agent
 from octop.api.deps import current_user, get_server
 from octop.infra.agents.experts.catalog import resolve_agent_display_task_examples
 from octop.infra.cron.task_type import (
+    CRON_PROMPT_MAX_LEN,
     normalize_cron_task_type,
     require_cron_name,
     require_cron_prompt,
@@ -21,13 +22,19 @@ from octop.infra.utils.ulid import new_cron_id
 
 router = APIRouter()
 
+CronPrompt = Annotated[
+    str,
+    AfterValidator(require_cron_prompt),
+    Field(min_length=1, max_length=CRON_PROMPT_MAX_LEN),
+]
+
 
 class CronCreateBody(BaseModel):
     name: str | None = None
     trigger: str = Field(
         description="Examples: cron:0 9 * * *, interval:3600, date:2030-01-01T08:00:00, or agently:INSTANCE_ID for new mail events."
     )
-    prompt: str
+    prompt: CronPrompt
     session_key: str | None = None
     fresh_thread: bool = False
     enabled: bool = True
@@ -42,7 +49,7 @@ class CronPatchBody(BaseModel):
         default=None,
         description="Time schedule or agently:INSTANCE_ID for new mail events.",
     )
-    prompt: str | None = None
+    prompt: CronPrompt | None = None
     session_key: str | None = None
     fresh_thread: bool | None = None
     enabled: bool | None = None

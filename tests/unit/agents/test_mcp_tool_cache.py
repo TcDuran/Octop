@@ -265,3 +265,33 @@ def test_wrap_tools_for_shared_use() -> None:
     wrapped = wrap_tools_for_shared_use([inner], lock)
     assert len(wrapped) == 1
     assert isinstance(wrapped[0], StructuredTool)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("is_error", [False, True])
+async def test_shared_mcp_tool_preserves_protocol_error_and_artifact(is_error: bool) -> None:
+    """MCP text failures must stay failed after the serialized cache wrapper."""
+    from langchain_mcp_adapters.tools import convert_mcp_tool_to_langchain_tool
+    from mcp.types import CallToolResult, TextContent, Tool
+
+    session = MagicMock()
+    session.call_tool = AsyncMock(
+        return_value=CallToolResult(
+            isError=is_error,
+            content=[TextContent(type="text", text="query failed" if is_error else "query ok")],
+            structuredContent=None if is_error else {"items": []},
+        )
+    )
+    inner = convert_mcp_tool_to_langchain_tool(
+        session,
+        Tool(name="query", description="Read source", inputSchema={"type": "object"}),
+    )
+    wrapped = wrap_tools_for_shared_use([inner], asyncio.Lock())[0]
+    result = await wrapped.ainvoke(
+        {"type": "tool_call", "name": "query", "args": {}, "id": "outer"}
+    )
+    assert result.tool_call_id == "outer"
+    assert result.status == ("error" if is_error else "success")
+    assert result.content[0]["text"] == ("query failed" if is_error else "query ok")
+    if not is_error:
+        assert result.artifact["structured_content"] == {"items": []}

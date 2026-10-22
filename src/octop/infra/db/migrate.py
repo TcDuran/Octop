@@ -2054,6 +2054,16 @@ def _grant_personalization_tab_permissions(db: DatabasePool) -> None:
     )
 
 
+def _ensure_automation_analysis_schema(db: DatabasePool) -> None:
+    """Repair a skipped migration without changing its applied-version watermark."""
+    suffix = ".pg.sql" if db.dialect == "postgresql" else ".sql"
+    canonical = (_MIGRATIONS_DIR / f"022_automation_analysis{suffix}").read_text(encoding="utf-8")
+    ddl = canonical.split("UPDATE _schema_version", 1)[0]
+    with db.transaction() as conn:
+        for statement in _split_pg_sql(ddl):
+            conn.execute(statement)
+
+
 def run_migrations(db: DatabasePool) -> None:
     if db.dialect == "sqlite":
         _repair_legacy_schema(db)
@@ -2106,5 +2116,6 @@ def run_migrations(db: DatabasePool) -> None:
     _ensure_sso_provider_kind_schema(db)
     _ensure_user_role_schema(db)
     _ensure_bridge_connections_schema(db)
+    _ensure_automation_analysis_schema(db)
     _grant_default_nav_permissions(db)
     _grant_personalization_tab_permissions(db)
