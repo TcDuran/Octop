@@ -76,6 +76,39 @@ async def test_create_lists_get_patch_delete_cycle(env: Any) -> None:
 # --- Trigger validation -------------------------------------------------------
 
 
+async def test_prompt_length_validation_on_create_and_patch(env: Any) -> None:
+    c, _srv, alice_auth, _bob_auth, aid = env
+    url = f"/api/agents/{aid}/cron"
+    prompt = "审批材料分析\n" * 1250  # 8750 characters, beyond the former limit.
+    r = await c.post(
+        url,
+        headers=alice_auth,
+        json={"trigger": "interval:300", "prompt": prompt, "enabled": False},
+    )
+    assert r.status_code == 201, r.text
+    cid = r.json()["id"]
+    assert r.json()["prompt"] == prompt.strip()
+
+    boundary = "中" * 10000
+    r = await c.patch(f"{url}/{cid}", headers=alice_auth, json={"prompt": boundary})
+    assert r.status_code == 200, r.text
+    assert r.json()["prompt"] == boundary
+
+    for invalid in (boundary + "中", "   "):
+        r = await c.post(
+            url,
+            headers=alice_auth,
+            json={"trigger": "interval:300", "prompt": invalid, "enabled": False},
+        )
+        assert r.status_code == 422, r.text
+        r = await c.patch(f"{url}/{cid}", headers=alice_auth, json={"prompt": invalid})
+        assert r.status_code == 422, r.text
+        saved = await c.get(f"{url}/{cid}", headers=alice_auth)
+        assert saved.json()["prompt"] == boundary
+
+    await c.delete(f"{url}/{cid}", headers=alice_auth)
+
+
 async def test_create_with_invalid_trigger_returns_400(env: Any) -> None:
     """Plan §12.6: ``build_trigger`` is called server-side at create;
     invalid spec must surface ``CRON_TRIGGER_INVALID`` (HTTP 400)."""

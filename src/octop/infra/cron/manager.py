@@ -78,8 +78,13 @@ class CronManager:
         self._delivery_service = delivery_service
         self._repos = repos
         self._timezone = timezone
+        from octop.infra.cron.analysis.service import AnalysisService
+
+        self.analysis = AnalysisService(self)
+        self._delivery_service.analysis = self.analysis
         self._scheduler: AsyncIOScheduler = AsyncIOScheduler(timezone=timezone)
         self._scheduler.add_listener(self._on_job_missed, EVENT_JOB_MISSED)
+        self._analysis_runs: set[str] = set()
         self._lock = asyncio.Lock()
         self._mail_watch = AgentlyWatchManager()
         # Process-level jobs (e.g. TLS auto-renew) that must survive reload_from_db.
@@ -91,6 +96,7 @@ class CronManager:
         self._delivery_service.replace_repos(repos)
 
     async def boot(self) -> None:
+        self.analysis.recover()
         self._scheduler.start()
         rows = self._repos.cron_repo.list_all(include_disabled=False)
         for row in rows:
@@ -203,6 +209,14 @@ class CronManager:
             existing = self._repos.cron_repo.get(cron_id)
             if existing is None:
                 raise OctopError(ErrorCode.NOT_FOUND, f"cron job {cron_id!r} not found")
+            self.analysis.validate_update(
+                existing,
+                session_key=session_key,
+                fresh_thread=fresh_thread,
+                task_type=task_type,
+                trigger=trigger,
+                enabled=enabled_bool,
+            )
             if trigger is not None or enabled_bool is True:
                 self._mail_source(trigger or existing.trigger, existing.user_id)
             repo_kwargs: dict[str, Any] = {
@@ -247,6 +261,7 @@ class CronManager:
         row = self._repos.cron_repo.get(cron_id)
         if row is None:
             raise OctopError(ErrorCode.NOT_FOUND, f"cron job {cron_id!r} not found")
+        self.analysis.retry(cron_id)
         logger.info("CronJob %s triggered manually", cron_id)
         if wait:
             await self._run_user_job(cron_id, raise_on_error=True, force=True)
@@ -263,9 +278,22 @@ class CronManager:
         row = self._repos.cron_repo.get(cron_id)
         if row is None or (not row.enabled and not force):
             return
+        if cron_id in self._analysis_runs:
+            return
+        self._analysis_runs.add(cron_id)
         try:
             await self._make_job(row).run(raise_on_error=raise_on_error)
+        except asyncio.CancelledError:
+            for state in ("queued", "running"):
+                self._repos.analysis_repo.transition(cron_id, state, "interrupted")
+            if self._repos.analysis_repo.for_cron(cron_id):
+                self._repos.cron_repo.update(cron_id, enabled=False)
+            raise
         finally:
+            self._analysis_runs.discard(cron_id)
+            completed = self._repos.cron_repo.get(cron_id)
+            if completed is not None:
+                self._repos.analysis_repo.finish(cron_id, success=completed.last_status == "ok")
             await self._finish_one_shot(cron_id)
 
     async def _finish_one_shot(self, cron_id: str) -> None:

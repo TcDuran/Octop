@@ -8,6 +8,7 @@ from octop.config import OctopConfig
 from octop.infra.db.pool import DatabasePool
 from octop.infra.db.repos.agents import AgentRepo
 from octop.infra.db.repos.audit import AuditRepo
+from octop.infra.db.repos.automation_analysis import AutomationAnalysisRepo
 from octop.infra.db.repos.backends import BackendRepo
 from octop.infra.db.repos.bridge_connections import BridgeConnectionRepo
 from octop.infra.db.repos.care_push import CarePushRepo
@@ -44,6 +45,7 @@ class RepoBundle:
     agent_repo: AgentRepo
     provider_repo: ProviderRepo
     channel_repo: ChannelRepo
+    analysis_repo: AutomationAnalysisRepo
     cron_repo: CronJobRepo
     session_repo: SessionRepo
     thread_repo: ThreadRepo
@@ -74,6 +76,7 @@ class RepoBundle:
             agent_repo=AgentRepo(db),
             provider_repo=ProviderRepo(db),
             channel_repo=ChannelRepo(db),
+            analysis_repo=AutomationAnalysisRepo(db),
             cron_repo=CronJobRepo(db),
             session_repo=SessionRepo(db),
             thread_repo=ThreadRepo(db),

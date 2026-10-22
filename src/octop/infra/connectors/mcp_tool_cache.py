@@ -64,6 +64,10 @@ def wrap_tools_for_shared_use(tools: list[Any], lock: asyncio.Lock) -> list[Any]
             **kwargs: Any,
         ) -> Any:
             async with _lock:
+                # Let the outer BaseTool handle MCP errors and artifacts. Calling
+                # ainvoke with plain arguments here discards ToolMessage.status.
+                if isinstance(_tool, StructuredTool) and _tool.coroutine is not None:
+                    return await _tool.coroutine(**kwargs)
                 return await _tool.ainvoke(kwargs)
 
         def _call(
@@ -73,6 +77,8 @@ def wrap_tools_for_shared_use(tools: list[Any], lock: asyncio.Lock) -> list[Any]
         ) -> Any:
             async def _run() -> Any:
                 async with _lock:
+                    if isinstance(_tool, StructuredTool) and _tool.coroutine is not None:
+                        return await _tool.coroutine(**kwargs)
                     return await _tool.ainvoke(kwargs)
 
             try:
@@ -90,5 +96,8 @@ def wrap_tools_for_shared_use(tools: list[Any], lock: asyncio.Lock) -> list[Any]
         }
         if isinstance(metadata, dict) and metadata:
             st_kwargs["metadata"] = dict(metadata)
+        if isinstance(tool, StructuredTool):
+            st_kwargs["response_format"] = tool.response_format
+            st_kwargs["handle_tool_error"] = tool.handle_tool_error
         wrapped.append(StructuredTool(**st_kwargs))
     return wrapped

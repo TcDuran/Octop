@@ -1870,6 +1870,9 @@ class AgentManager:
             self._thread_execution_lock(agent_id, thread_id),
             self._track_invocation(agent_id),
         ):
+            from octop.infra.cron.analysis.runtime import check_execution
+
+            check_execution()
             self._apply_pending_bootstrap_graph_refresh(agent_id)
             req = self._prepare_stream_request(agent_id, request)
             with (
@@ -3795,9 +3798,13 @@ class AgentManager:
 
         cron_tools: list[Any] | None = None
         if not team_host and self._cron_manager is not None:
+            from octop.infra.cron.analysis.tools import build_analysis_tools
             from octop.infra.cron.tools import build_cronjob_tools  # noqa: PLC0415
 
-            cron_tools = build_cronjob_tools(self._cron_manager)
+            cron_tools = [
+                *build_cronjob_tools(self._cron_manager),
+                *build_analysis_tools(self._cron_manager.analysis),
+            ]
 
         session_push_tools: list[Any] = []
         if not team_host and self._gateway is not None:
@@ -3901,7 +3908,6 @@ class AgentManager:
         from octop.infra.agents.middleware.workspace_image import (
             WorkspaceImageMaterializeMiddleware,
         )
-        from octop.infra.knowledge.hint import KnowledgeSearchHintMiddleware
 
         # FilesystemGuard + ModelSettings live in octop-harness (auto-mounted).
         # BinaryReadGuard stays Octop-specific (inbound/attachment product policy).
@@ -3910,7 +3916,11 @@ class AgentManager:
         # OctopUiOffload stays innermost so every outer middleware observes the
         # slimmed content consistently; it only touches octop_ui plugin envelopes,
         # disjoint from the file-tool results ThreadArtifacts cares about.
+        from octop.infra.cron.analysis.middleware import AnalysisToolMiddleware
+        from octop.infra.knowledge.hint import KnowledgeSearchHintMiddleware
+
         agent_middleware: list[Any] = [
+            AnalysisToolMiddleware(),
             *plugin_middleware,
             TokenQuotaMiddleware(
                 policy_repo=self._repos.user_policy_repo,

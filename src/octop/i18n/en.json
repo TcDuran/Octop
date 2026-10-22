@@ -527,7 +527,8 @@
     "LOCAL_DOWNLOAD_UNAVAILABLE": "Saving to the host Downloads folder is only available when Octop is opened on this computer.",
     "SKILL_PACKAGE_COPY_DENIED": "The creator of this skill package has disabled copying its skills.",
     "SKILL_PACKAGE_DOWNLOAD_DENIED": "Downloading this skill package is disabled.",
-    "SKILL_PACKAGE_LOCKED": "This skill was copied from a locked skill package and cannot be edited in the workspace."
+    "SKILL_PACKAGE_LOCKED": "This skill was copied from a locked skill package and cannot be edited in the workspace.",
+    "AUTOMATION_ANALYSIS_CONFLICT": "The analysis state or permissions do not allow this operation. Check the task status."
   },
   "desktop": {
     "install_log_deps": "Installing Python dependencies…",
@@ -648,7 +649,9 @@
     "generate_image": "Generate image",
     "generate_video": "Generate video",
     "bilibili_search_anime": "Search Bilibili anime",
-    "search_arxiv": "Search arXiv papers"
+    "search_arxiv": "Search arXiv papers",
+    "sync_analysis_items": "Register and query analysis items",
+    "dispatch_analysis_task": "Arrange item analysis"
   },
   "plugins": {
     "arxiv_search": {
@@ -1002,5 +1005,26 @@
     "error_exited": "laya-serve exited before it was ready.",
     "error_not_installed": "Laya is not installed yet.",
     "error_stalled": "The install produced no result for too long and was stopped."
+  },
+  "analysis": {
+    "scan_required": "Use this tool in a successful automation scanning turn.",
+    "owner_changed": "The automation owner or agent no longer matches.",
+    "fixed_target_required": "Analysis requires an agent automation with a fixed conversation.",
+    "target_changed": "The target conversation was changed or deleted.",
+    "obsolete": "This analysis task is no longer applicable.",
+    "parent_disabled": "The scanning automation is disabled.",
+    "dashboard_required": "Use a dashboard conversation for the scanning overview.",
+    "incomplete": "Complete the selected source query before registering items.",
+    "sync_required": "Synchronize this pending item and version in the current scan first.",
+    "active_or_uncertain": "An analysis is active or needs review.",
+    "already_attempted": "This version already has an analysis attempt; retry a failed attempt manually.",
+    "limit": "This scan has reached the limit of five new analyses.",
+    "prompt_too_long": "Analysis instructions, source information and execution constraints together exceed the {limit}-character Cron prompt limit. Shorten the instructions and try again.",
+    "not_scheduled": "The analysis could not be scheduled.",
+    "queued": "The analysis is queued, not yet completed.",
+    "retry_not_allowed": "Only the latest failed, missed or interrupted analysis may be retried.",
+    "already_running": "This analysis has already started.",
+    "tool_blocked": "This tool is unavailable in automated analysis.",
+    "tool_failed": "An analysis tool failed; previous successful results have been retained."
   }
 }

@@ -6,7 +6,7 @@ from typing import Literal
 
 CronTaskType = Literal["text", "agent"]
 DEFAULT_CRON_TASK_TYPE: CronTaskType = "agent"
-CRON_PROMPT_MAX_LEN = 2000
+CRON_PROMPT_MAX_LEN = 10000
 CRON_NAME_MAX_LEN = 80
 CRON_NAME_FALLBACK_LEN = 40
 _CRON_TASK_TYPES = frozenset({"text", "agent"})

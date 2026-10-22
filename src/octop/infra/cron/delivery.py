@@ -18,7 +18,7 @@ from octop.infra.history.projection import TurnHistoryTracker, message_inputs
 from octop.infra.knowledge.default_open import stamp_turn_knowledge_config
 from octop.infra.utils.llm_text import strip_thinking
 from octop.infra.utils.locale import resolve_user_locale
-from octop.infra.utils.turn_failure import log_failed_tool_results
+from octop.infra.utils.turn_failure import iter_failed_tool_results, log_failed_tool_results
 from octop.infra.utils.ulid import new_ulid
 
 if TYPE_CHECKING:
@@ -60,6 +60,7 @@ class CronDeliveryService:
         self._gateway = gateway
         self._agent_manager = agent_manager
         self._repos = repos
+        self.analysis: Any = None
 
     def replace_repos(self, repos: RepoBundle) -> None:
         """Retarget projection and locale lookups after a control-plane swap."""
@@ -69,6 +70,17 @@ class CronDeliveryService:
         """Run one delivery under the target channel session lock."""
 
         async def _locked() -> None:
+            if self.analysis is not None:
+                existing = self._repos.session_repo.get(command.session_key)
+                if existing is not None:
+                    preflight = self.analysis.make_run(
+                        command.cron_id, existing.thread_id, command.session_key
+                    )
+                    if preflight.role in {"scan", "analysis"}:
+                        from octop.infra.cron.analysis.runtime import analysis_scope
+
+                        with analysis_scope(preflight):
+                            preflight.guard()
             if command.fresh_thread:
                 await self._gateway.thread_registry.reset_by_session_key(command.session_key)
             session = self._gateway.require_session(command.agent_id, command.session_key)
@@ -78,6 +90,18 @@ class CronDeliveryService:
                 )
             if command.task_type == "text":
                 await self._deliver_text(command, session)
+            elif self.analysis is not None:
+                from octop.infra.cron.analysis.runtime import analysis_scope
+
+                run = self.analysis.make_run(
+                    command.cron_id, session.thread_id, command.session_key
+                )
+                with analysis_scope(run):
+                    if run.role in {"scan", "analysis"}:
+                        run.guard()
+                    await self._deliver_agent(command, session)
+                    if run.failed:
+                        raise RuntimeError(tr("analysis.tool_failed", run.locale))
             else:
                 await self._deliver_agent(command, session)
 
@@ -154,6 +178,16 @@ class CronDeliveryService:
                     if kind == "tool_call_chunk":
                         saw_tool_call = True
                     elif kind == "tool_result":
+                        from octop.infra.cron.analysis.runtime import current_run
+
+                        run = current_run()
+                        if (
+                            run is not None
+                            and run.role in {"scan", "analysis"}
+                            and saw_tool_call
+                            and iter_failed_tool_results(chunk)
+                        ):
+                            run.failed = True
                         log_failed_tool_results(
                             chunk,
                             agent_id=command.agent_id,
@@ -165,6 +199,17 @@ class CronDeliveryService:
                         parts.append(str(chunk.get("content") or chunk.get("text") or ""))
                     elif kind == "hitl_required":
                         interaction_required = True
+                    elif kind == "error":
+                        from octop.infra.cron.analysis.runtime import current_run
+
+                        run = current_run()
+                        if run is not None and run.role in {"scan", "analysis"}:
+                            run.failed = True
+            from octop.infra.cron.analysis.runtime import current_run
+
+            analysis_run = current_run()
+            if analysis_run is not None and analysis_run.failed:
+                raise RuntimeError(tr("analysis.tool_failed", analysis_run.locale))
             if interaction_required:
                 raise RuntimeError("cron agent run requires user interaction")
             outbound = strip_thinking("".join(parts)).strip()
