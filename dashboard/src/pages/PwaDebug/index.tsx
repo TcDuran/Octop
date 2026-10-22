@@ -166,7 +166,7 @@ export default function PwaDebugPage() {
     }
 
     // ── 5. Manifest fetch ────────────────────────────────────────
-    fetch("/manifest.json")
+    fetch("./manifest.json")
       .then(async (res) => {
         const ct = res.headers.get("content-type") ?? "";
         let detail = `HTTP ${res.status}  Content-Type: ${ct}`;
@@ -280,7 +280,7 @@ export default function PwaDebugPage() {
     // ── 6. sw.js fetch ───────────────────────────────────────────
     // Use GET + abort so HEAD 405 (some servers block HEAD) doesn't cause false fail.
     const swAbort = new AbortController();
-    fetch("/sw.js", { signal: swAbort.signal })
+    fetch("./sw.js", { signal: swAbort.signal })
       .then((res) => {
         swAbort.abort();
         const cc = res.headers.get("cache-control") ?? "(none)";

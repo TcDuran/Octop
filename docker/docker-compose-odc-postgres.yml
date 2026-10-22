@@ -1,0 +1,81 @@
+# =============================================================================
+# Octop ODC production Compose for 221.232.69.57
+#
+# Deploy as /apps/octop/docker-compose-odc-postgres.yml with /apps/octop/.env:
+#   OCTOP_IMAGE=octop:<immutable-release-tag>
+#   OCTOP_DATABASE_PASSWORD=<strong-password>
+#
+# Leave OCTOP_DEFAULT_PASSWORD unset to use the first-run setup wizard.
+#
+# The existing PostgreSQL container is reached through its external Docker
+# network. Create the dedicated role/database before starting Octop; this file
+# intentionally starts no database container and never uses the plat database.
+#
+# Run:
+#   cd /apps/octop
+#   docker compose -f docker-compose-odc-postgres.yml config
+#   docker compose -f docker-compose-odc-postgres.yml up -d
+#
+# Nginx on port 7321 must preserve the /octop prefix when proxying:
+#   location = /octop { return 308 /octop/; }
+#   location ^~ /octop/ {
+#       proxy_pass http://127.0.0.1:8088;   # No trailing slash: preserve prefix.
+#       proxy_http_version 1.1;
+#       proxy_set_header Upgrade $http_upgrade;
+#       proxy_set_header Connection "upgrade";
+#       proxy_set_header Host $http_host;
+#       proxy_set_header X-Forwarded-Proto $scheme;
+#       proxy_set_header X-Forwarded-Host $http_host;
+#       proxy_buffering off;
+#       proxy_read_timeout 3600s;
+#   }
+# =============================================================================
+
+name: octop-odc
+
+services:
+  octop:
+    image: ${OCTOP_IMAGE:?Set OCTOP_IMAGE in /apps/octop/.env}
+    pull_policy: never
+    container_name: octop-odc
+    restart: unless-stopped
+    stop_grace_period: 30s
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    ports:
+      # Only the host Nginx can reach Octop; do not expose 8088 publicly.
+      - "127.0.0.1:${OCTOP_HOST_PORT:-8088}:8088"
+    volumes:
+      - /apps/octop/data:/data/.octop
+    environment:
+      HOME: /data
+      OCTOP_BIND_HOST: 0.0.0.0
+      OCTOP_PORT: "8088"
+      OCTOP_BASE_PATH: /octop
+      OCTOP_LOG_LEVEL: ${OCTOP_LOG_LEVEL:-info}
+      OCTOP_DEFAULT_PASSWORD: ${OCTOP_DEFAULT_PASSWORD:-}
+      OCTOP_DATABASE_DRIVER: postgresql
+      OCTOP_DATABASE_HOST: ${OCTOP_DATABASE_HOST:-postgres}
+      OCTOP_DATABASE_PORT: ${OCTOP_DATABASE_PORT:-5432}
+      OCTOP_DATABASE_NAME: ${OCTOP_DATABASE_NAME:-octop}
+      OCTOP_DATABASE_USER: ${OCTOP_DATABASE_USER:-octop}
+      OCTOP_DATABASE_PASSWORD: ${OCTOP_DATABASE_PASSWORD:?Set OCTOP_DATABASE_PASSWORD in /apps/octop/.env}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8088/octop/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    networks:
+      - multica_default
+
+networks:
+  multica_default:
+    external: true

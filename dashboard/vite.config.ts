@@ -88,6 +88,8 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
+    // The server injects a runtime <base>; one build works at every prefix.
+    base: "./",
     build: {
       outDir: path.resolve(__dirname, "../src/octop/dashboard"),
       emptyOutDir: true,
@@ -252,7 +254,9 @@ export default defineConfig(({ mode }) => {
             {
               // Read-only API calls (chat history, files, config).
               // NetworkFirst ensures fresh data when online; cache used offline.
-              urlPattern: /^\/api\/(chats|agent\/files|agent\/memory)/,
+              urlPattern: ({ url, sameOrigin }) =>
+                sameOrigin &&
+                /\/api\/(chats|agent\/files|agent\/memory)/.test(url.pathname),
               handler: "NetworkFirst",
               options: {
                 cacheName: "api-readonly",

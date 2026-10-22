@@ -2,8 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favico.svg" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <base href="/" />
+    <link rel="icon" type="image/svg+xml" href="./favico.svg" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
@@ -28,7 +29,7 @@
     />
     <meta name="apple-mobile-web-app-title" content="Octop" />
     <!-- Web App Manifest -->
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="manifest" href="./manifest.json" />
     <title>Octop</title>
     <!--
       Resolve dashboard theme before first paint. Must stay a classic script:
@@ -240,7 +241,9 @@
               .then(function (regs) {
                 return Promise.all(
                   regs.map(function (r) {
-                    return r.unregister();
+                    return r.scope === new URL(".", document.baseURI).href
+                      ? r.unregister()
+                      : Promise.resolve(false);
                   }),
                 );
               });
@@ -250,7 +253,18 @@
               return caches.keys().then(function (keys) {
                 return Promise.all(
                   keys.map(function (k) {
-                    return caches.delete(k);
+                    var scope = new URL(".", document.baseURI).href;
+                    return caches.open(k).then(function (cache) {
+                      return cache.keys().then(function (requests) {
+                        return Promise.all(
+                          requests.map(function (request) {
+                            return request.url.indexOf(scope) === 0
+                              ? cache.delete(request)
+                              : Promise.resolve(false);
+                          }),
+                        );
+                      });
+                    });
                   }),
                 );
               });
@@ -279,14 +293,14 @@
           <div id="octop-boot-ring"></div>
           <img
             class="octop-boot-logo octop-boot-logo--light"
-            src="/logo_vertical_dark.svg"
+            src="./logo_vertical_dark.svg"
             alt=""
             width="60"
             height="60"
           />
           <img
             class="octop-boot-logo octop-boot-logo--dark"
-            src="/logo_vertical_white.svg"
+            src="./logo_vertical_white.svg"
             alt=""
             width="60"
             height="60"

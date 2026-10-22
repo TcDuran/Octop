@@ -1,4 +1,5 @@
 declare const BASE_URL: string;
+import { getBasePath } from "../utils/deploymentPath";
 
 /**
  * Get the full API URL with /api prefix
@@ -6,10 +7,11 @@ declare const BASE_URL: string;
  * @returns Full API URL (e.g., "http://localhost:8088/api/models" or "/api/models")
  */
 export function getApiUrl(path: string): string {
-  const base = BASE_URL || "";
+  const base =
+    (typeof BASE_URL === "undefined" ? "" : BASE_URL) || getBasePath();
   const apiPrefix = "/api";
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  return `${base}${apiPrefix}${normalizedPath}`;
+  return `${base.replace(/\/$/, "")}${apiPrefix}${normalizedPath}`;
 }
 
 /**
@@ -20,10 +22,7 @@ export function getApiUrl(path: string): string {
  * @returns Full WebSocket URL
  */
 export function getWsUrl(path: string): string {
-  const base = BASE_URL || "";
-  const apiPrefix = "/api";
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  const httpUrl = `${base}${apiPrefix}${normalizedPath}`;
+  const httpUrl = getApiUrl(path);
 
   if (httpUrl.startsWith("http://")) {
     return httpUrl.replace("http://", "ws://");

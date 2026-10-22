@@ -2,6 +2,8 @@
  * Resolve tool-result media URLs for dashboard display.
  */
 
+import { publicApiUrl, withoutBasePath } from "./deploymentPath";
+
 import {
   isHostAbsolutePath,
   stripVirtualWorkspaceRoot,
@@ -26,9 +28,10 @@ export function isDataUrl(url: string): boolean {
 
 /** URLs that require Authorization and must be fetched via requestBlob. */
 export function needsAuthBlobFetch(url: string): boolean {
-  const path = url.startsWith("http")
+  const rawPath = url.startsWith("http")
     ? new URL(url).pathname
     : url.split("?")[0];
+  const path = withoutBasePath(rawPath);
   if (path === "/api/workspace/media") return true;
   // Bridge agent ids contain ``:`` (or ``%3A``); ``[^/]+`` still matches.
   if (/^\/api\/agents\/[^/]+\/avatar$/.test(path)) return true;
@@ -282,7 +285,7 @@ export function canonicalizeMediaApiUrl(
     const parsed = url.startsWith("http")
       ? new URL(url)
       : new URL(url, "http://octop.local");
-    const pathMatch = parsed.pathname.match(
+    const pathMatch = withoutBasePath(parsed.pathname).match(
       /^\/api\/agents\/([^/]+)\/(media\/preview|workspace\/download)$/,
     );
     if (!pathMatch) return url;
@@ -757,10 +760,9 @@ function withCanonicalUrls(
   items: ToolMediaItem[],
   chatAgentId?: string | null,
 ): ToolMediaItem[] {
-  if (!chatAgentId) return items;
   return items.map((item) => ({
     ...item,
-    url: canonicalizeMediaApiUrl(item.url, chatAgentId),
+    url: publicApiUrl(canonicalizeMediaApiUrl(item.url, chatAgentId)),
   }));
 }
 
@@ -869,7 +871,9 @@ export function collectToolMediaFromToolData(
     files: dedupeByUrl(
       files.map((file) => ({
         ...file,
-        url: agentId ? canonicalizeMediaApiUrl(file.url, agentId) : file.url,
+        url: publicApiUrl(
+          agentId ? canonicalizeMediaApiUrl(file.url, agentId) : file.url,
+        ),
       })),
     ),
   };

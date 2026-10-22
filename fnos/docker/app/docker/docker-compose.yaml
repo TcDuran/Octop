@@ -27,7 +27,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          "python3 -c \"import json,urllib.request; r=json.load(urllib.request.urlopen('http://127.0.0.1:8088/api/health', timeout=3)); raise SystemExit(0 if r.get('users_loaded', 0) >= 1 else 1)\"",
+          "python3 -c \"import json,urllib.request; from octop.config import load_config; from octop.infra.utils.paths import PathLayout; from octop.infra.utils.env_file import apply_env_file, env_file_path; p=PathLayout.from_env(); apply_env_file(env_file_path(p.root)); c=load_config(p.config); r=json.load(urllib.request.urlopen(f'http://127.0.0.1:{c.port}{c.base_path}/api/health', timeout=3)); raise SystemExit(0 if r.get('users_loaded', 0) >= 1 else 1)\"",
         ]
       interval: 10s
       timeout: 5s

@@ -63,6 +63,7 @@ describe("registerProductionSW", () => {
   });
 
   afterEach(() => {
+    delete window.__OCTOP_CONFIG__;
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -103,6 +104,20 @@ describe("registerProductionSW", () => {
 
     expect(waiting.postMessage).not.toHaveBeenCalled();
     expect(onReady).toHaveBeenCalledOnce();
+  });
+
+  it("registers only under the runtime deployment scope", async () => {
+    window.__OCTOP_CONFIG__ = { basePath: "/apps/octop" };
+    mockRegistration({ controller: null });
+    const { registerProductionSW } = await import("./sw-register");
+    await registerProductionSW();
+    expect(navigator.serviceWorker.register).toHaveBeenCalledWith(
+      "/apps/octop/sw.js",
+      {
+        scope: "/apps/octop/",
+        updateViaCache: "none",
+      },
+    );
   });
 });
 

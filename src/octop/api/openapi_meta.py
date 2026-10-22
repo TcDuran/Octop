@@ -197,6 +197,7 @@ def configure_openapi(app: FastAPI) -> None:
             description=API_DESCRIPTION,
             routes=app.routes,
             tags=OPENAPI_TAGS,
+            servers=app.servers,
         )
         components = schema.setdefault("components", {})
         components.setdefault("securitySchemes", {})["BearerAuth"] = _BEARER_SCHEME

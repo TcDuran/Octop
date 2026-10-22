@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { requestBlob } from "../api/request";
+import { apiPathFromUrl, withBasePath } from "../utils/deploymentPath";
 import {
   asImageBlob,
   isDataUrl,
@@ -17,14 +18,6 @@ type AuthImageCacheEntry = {
 };
 
 const authImageCache = new Map<string, AuthImageCacheEntry>();
-
-function apiPathFromUrl(url: string): string {
-  if (url.startsWith("http")) {
-    const parsed = new URL(url);
-    return parsed.pathname.replace(/^\/api/, "") + parsed.search;
-  }
-  return url.replace(/^\/api/, "");
-}
 
 export async function fetchAuthImageBlob(
   url: string,
@@ -109,6 +102,7 @@ export function useAuthImageSrc(
   loadState: AuthImageLoadState;
   setSrc: React.Dispatch<React.SetStateAction<string>>;
 } {
+  url = withBasePath(url);
   const needsFetch = needsAuthBlobFetch(url) || isDataUrl(url);
   const [src, setSrc] = useState(() => (needsFetch ? "" : url));
   const [loadState, setLoadState] = useState<AuthImageLoadState>(() =>

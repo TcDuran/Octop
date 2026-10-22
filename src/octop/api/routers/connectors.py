@@ -15,6 +15,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field, model_validator
 
 from octop.api.common.public_base import resolve_public_base
+from octop.api.deployment import public_path
 from octop.api.deps import current_user, get_server, require_permission
 from octop.i18n import tr
 from octop.infra.auth.sso.redirect_after import sanitize_redirect_after
@@ -1551,7 +1552,7 @@ async def oauth_callback(
         if key != "oauth_state"
     ]
     query.append(("oauth_state", row.state_id))
-    redirect_target = redirect._replace(query=urlencode(query)).geturl()
+    redirect_target = public_path(request.scope, redirect._replace(query=urlencode(query)).geturl())
     locale = resolve_request_locale(request)
     success_message = tr("connector.oauth.callback_success", locale)
     # JSON-encode for the JS string literal (quotes/backslashes/newlines) and

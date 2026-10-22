@@ -3,6 +3,8 @@
  * sessionStorage guards against infinite reload loops.
  */
 
+import { clearDeploymentCaches } from "./deploymentCache";
+
 const RELOAD_FLAG_KEY = "octop:chunk-reload";
 
 // A stale hashed chunk can also surface as a MIME rejection: the SPA fallback
@@ -48,14 +50,7 @@ export function isChunkLoadError(error: unknown): boolean {
 /** Drop SW + Cache Storage so the next load is not served a stale shell. */
 export async function bustServiceWorkerAndReload(): Promise<void> {
   try {
-    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map((r) => r.unregister()));
-    }
-    if (typeof caches !== "undefined") {
-      const keys = await caches.keys();
-      await Promise.all(keys.map((k) => caches.delete(k)));
-    }
+    await clearDeploymentCaches();
   } catch {
     // Still reload — a soft refresh is better than staying on a blank page.
   }
