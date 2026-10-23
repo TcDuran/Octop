@@ -47,6 +47,18 @@ def test_ui_progress_from_bytes_is_byte_fraction() -> None:
     assert _ui_progress_from_bytes(50, 0) is None
 
 
+def test_embedding_dependency_probe_treats_runtime_failure_as_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_runtime_error(*args: object, **kwargs: object) -> object:
+        del args, kwargs
+        raise RuntimeError("unsupported CPU baseline")
+
+    monkeypatch.setattr("builtins.__import__", raise_runtime_error)
+
+    assert local_embedding_deps_available() is False
+
+
 def test_download_sync_reports_tqdm_bytes(monkeypatch, tmp_path) -> None:
     from octop.infra.agents.providers import onnx_service as mod
 

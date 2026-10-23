@@ -104,7 +104,7 @@ def local_ocr_deps_available() -> bool:
     try:
         import pymupdf  # noqa: F401
         import rapidocr  # noqa: F401
-    except ImportError:
+    except (ImportError, RuntimeError):
         return False
     return True
 
@@ -112,7 +112,7 @@ def local_ocr_deps_available() -> bool:
 def pdf_ocr_deps_available() -> bool:
     try:
         import pymupdf  # noqa: F401
-    except ImportError:
+    except (ImportError, RuntimeError):
         return False
     return True
 

@@ -61,6 +61,18 @@ def test_ocr_disabled_by_default() -> None:
     assert capability["usable"] is False
 
 
+def test_ocr_dependency_probe_treats_runtime_failure_as_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def raise_runtime_error(*args: object, **kwargs: object) -> object:
+        del args, kwargs
+        raise RuntimeError("unsupported CPU baseline")
+
+    monkeypatch.setattr("builtins.__import__", raise_runtime_error)
+
+    assert ocr.local_ocr_deps_available() is False
+
+
 def test_set_local_ocr_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     values: dict[str, str] = {}
     monkeypatch.setattr(ocr, "local_ocr_deps_available", lambda: True)

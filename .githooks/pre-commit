@@ -51,7 +51,7 @@ if ((${#STAGED_FILES[@]} > 0)); then
     fi
   done
   if ((${#existing[@]} > 0)); then
-    git add -- "${existing[@]}"
+    git add -u -- "${existing[@]}"
   fi
 fi
 

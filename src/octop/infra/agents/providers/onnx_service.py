@@ -65,7 +65,7 @@ def local_embedding_deps_available() -> bool:
     """True when fastembed can be imported (preferred local embedding runtime)."""
     try:
         import fastembed  # noqa: F401
-    except ImportError:
+    except (ImportError, RuntimeError):
         return False
     return True
 
