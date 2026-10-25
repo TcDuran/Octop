@@ -401,7 +401,8 @@ export default function Sidebar({
   const setUser = useSetCurrentUser();
   const { hasUpdate } = useUpdateStatus();
   const { mobileEnabled } = useServerCapabilities();
-  const { layoutMode, minimalPane, setMinimalPane } = useLayoutMode();
+  const { layoutMode, minimalPane, setMinimalPane, isPlatEmbedded } =
+    useLayoutMode();
   const isMinimal = layoutMode === "minimal";
   const onChatPath = isChatPath(location.pathname);
   const catalog = useMemo(
@@ -411,8 +412,17 @@ export default function Sidebar({
   const [savedLayout, setSavedLayout] = useState<SidebarNavLayout | null>(null);
   const [customizerOpen, setCustomizerOpen] = useState(false);
   const navSections = useMemo(
-    () => sectionsFromLayout(catalog, savedLayout),
-    [catalog, savedLayout],
+    () =>
+      isPlatEmbedded
+        ? [
+            {
+              items: catalog
+                .flatMap((section) => section.items)
+                .filter((item) => item.key === "chat" || item.key === "tasks"),
+            },
+          ]
+        : sectionsFromLayout(catalog, savedLayout),
+    [catalog, savedLayout, isPlatEmbedded],
   );
   const { toggleGroup, isGroupCollapsed } = useNavGroupCollapse(
     navSections,
@@ -534,7 +544,7 @@ export default function Sidebar({
     </>
   );
 
-  const userFooter = (
+  const userFooter = !isPlatEmbedded ? (
     <div
       className={styles.sidebarUser}
       style={{
@@ -553,7 +563,7 @@ export default function Sidebar({
         onCustomizeNav={() => setCustomizerOpen(true)}
       />
     </div>
-  );
+  ) : null;
 
   const customizer = (
     <SidebarNavCustomizer

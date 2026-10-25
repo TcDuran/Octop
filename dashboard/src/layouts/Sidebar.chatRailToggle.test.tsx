@@ -34,12 +34,14 @@ function renderSidebar(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <LocationProbe />
-      <Sidebar
-        selectedKey="chat"
-        collapsed={false}
-        onToggle={() => undefined}
-        isMobile={false}
-      />
+      <LayoutModeProvider>
+        <Sidebar
+          selectedKey="chat"
+          collapsed={false}
+          onToggle={() => undefined}
+          isMobile={false}
+        />
+      </LayoutModeProvider>
     </MemoryRouter>,
   );
 }
@@ -52,7 +54,7 @@ function toggleButton() {
 
 describe("classic chat rail toggle", () => {
   beforeEach(() => {
-    localStorage.removeItem(LAYOUT_MODE_KEY);
+    localStorage.setItem(LAYOUT_MODE_KEY, "classic");
     const hook = renderHookOpen();
     act(() => hook.setOpen(false));
     hook.unmount();

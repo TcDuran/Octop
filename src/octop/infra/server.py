@@ -338,6 +338,7 @@ class OctopServer:
         self._started = False
         self._started_at: int | None = None
         self._sso_service: SsoService | None = None
+        self._oidc_agent_lock = asyncio.Lock()
         self._ldap_service: LdapAuthService | None = None
         self._ldap_bind_throttle: LdapBindThrottle | None = None
         self._ldap_bind_throttle_services: SharedServices | None = None
@@ -363,8 +364,22 @@ class OctopServer:
                 self.services,
                 self.user_manager,
                 on_plat_login=self._reload_plat_connectors,
+                on_oidc_login=self._initialize_oidc_agent,
             )
         return self._sso_service
+
+    async def _initialize_oidc_agent(self, user_id: int) -> None:
+        from octop.infra.auth.sso.default_agent import ensure_default_oidc_agent
+
+        if self.app_runtime is None or self.services is None or self.expert_catalog is None:
+            raise RuntimeError("Agent runtime is not available")
+        async with self._oidc_agent_lock:
+            await ensure_default_oidc_agent(
+                services=self.services,
+                registry=self.app_runtime.agent_registry,
+                catalog=self.expert_catalog,
+                user_id=user_id,
+            )
 
     async def _reload_plat_connectors(self, user_id: int) -> None:
         if self.app_runtime is None or self.services is None:
