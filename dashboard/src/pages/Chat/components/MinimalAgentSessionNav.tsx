@@ -35,6 +35,7 @@ import {
   type ChatNavScope,
 } from "../utils/chatNavScope";
 import ChatNavScopeTabs, { ChatNavScopeEmpty } from "./ChatNavScopeTabs";
+import { useLayoutMode } from "../../../context/LayoutModeContext";
 import {
   expertVisibleInNavSearch,
   matchesNavQuery,
@@ -293,6 +294,7 @@ export default function MinimalAgentSessionNav({
   activeForkDisabledHint,
 }: MinimalAgentSessionNavProps) {
   const { t } = useTranslation();
+  const { isPlatEmbedded } = useLayoutMode();
   const navigate = useNavigate();
   const [byAgent, setByAgent] = useState<Record<string, Session[]>>({});
   const liveWorkingIds = useSessionWorkIds();
@@ -310,11 +312,12 @@ export default function MinimalAgentSessionNav({
   );
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [navScope, setNavScope] = useState<ChatNavScope>(() =>
+  const [selectedNavScope, setNavScope] = useState<ChatNavScope>(() =>
     initialChatNavScope(
       agents.find((agent) => agent.agent_id === activeAgentId),
     ),
   );
+  const navScope = isPlatEmbedded ? "experts" : selectedNavScope;
   const { pinnedIds, isPinned, togglePin } = usePinnedExperts();
   const sortedAgents = useMemo(
     () =>
@@ -567,7 +570,9 @@ export default function MinimalAgentSessionNav({
           aria-label={t("chat.searchSessions", "搜索会话")}
         />
       </div>
-      <ChatNavScopeTabs value={navScope} onChange={setNavScope} />
+      {!isPlatEmbedded && (
+        <ChatNavScopeTabs value={navScope} onChange={setNavScope} />
+      )}
       {visibleAgents.length === 0 ? (
         searching ? (
           <div className={styles.minimalAgentEmpty}>

@@ -14,8 +14,10 @@ import {
   type LayoutMode,
   type MinimalNavPane,
 } from "../layouts/layoutModeStorage";
+import { isPlatEmbedded } from "../utils/platEmbed";
 
 interface LayoutModeContextValue {
+  isPlatEmbedded: boolean;
   layoutMode: LayoutMode;
   setLayoutMode: (mode: LayoutMode) => void;
   /** Lower pane in minimal layout (settings vs records). Ignored in classic. */
@@ -24,13 +26,15 @@ interface LayoutModeContextValue {
 }
 
 const LayoutModeContext = createContext<LayoutModeContextValue>({
-  layoutMode: "classic",
+  isPlatEmbedded: false,
+  layoutMode: "minimal",
   setLayoutMode: () => {},
-  minimalPane: "settings",
+  minimalPane: "records",
   setMinimalPane: () => {},
 });
 
 export function LayoutModeProvider({ children }: { children: ReactNode }) {
+  const embedded = isPlatEmbedded();
   const [layoutMode, setLayoutModeState] = useState<LayoutMode>(() =>
     loadLayoutMode(),
   );
@@ -38,19 +42,33 @@ export function LayoutModeProvider({ children }: { children: ReactNode }) {
     loadMinimalNavPane(),
   );
 
-  const setLayoutMode = useCallback((mode: LayoutMode) => {
-    setLayoutModeState(mode);
-    saveLayoutMode(mode);
-  }, []);
+  const setLayoutMode = useCallback(
+    (mode: LayoutMode) => {
+      if (embedded) return;
+      setLayoutModeState(mode);
+      saveLayoutMode(mode);
+    },
+    [embedded],
+  );
 
-  const setMinimalPane = useCallback((pane: MinimalNavPane) => {
-    setMinimalPaneState(pane);
-    saveMinimalNavPane(pane);
-  }, []);
+  const setMinimalPane = useCallback(
+    (pane: MinimalNavPane) => {
+      if (embedded) return;
+      setMinimalPaneState(pane);
+      saveMinimalNavPane(pane);
+    },
+    [embedded],
+  );
 
   const value = useMemo(
-    () => ({ layoutMode, setLayoutMode, minimalPane, setMinimalPane }),
-    [layoutMode, setLayoutMode, minimalPane, setMinimalPane],
+    () => ({
+      isPlatEmbedded: embedded,
+      layoutMode: embedded ? ("minimal" as const) : layoutMode,
+      setLayoutMode,
+      minimalPane: embedded ? ("records" as const) : minimalPane,
+      setMinimalPane,
+    }),
+    [embedded, layoutMode, setLayoutMode, minimalPane, setMinimalPane],
   );
 
   return (

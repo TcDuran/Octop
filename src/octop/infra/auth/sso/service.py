@@ -53,10 +53,12 @@ class SsoService:
         user_manager: UserManager,
         *,
         on_plat_login: Callable[[int], Awaitable[None]] | None = None,
+        on_oidc_login: Callable[[int], Awaitable[None]] | None = None,
     ) -> None:
         self._services = services
         self._user_manager = user_manager
         self._on_plat_login = on_plat_login
+        self._on_oidc_login = on_oidc_login
         self._discovery = DiscoveryCache()
         self._adapters: dict[str, IdentityProvider] = build_adapters(self)
 
@@ -394,6 +396,17 @@ class SsoService:
             except Exception:
                 # Do not include exceptions or token responses in logs.
                 logger.error("PLAT credential save/reload failed user_id=%s", user.id)
+                return self._error_redirect(frontend, "generic")
+
+        if (
+            provider.kind == "oidc"
+            and login_state.user_id is None
+            and self._on_oidc_login is not None
+        ):
+            try:
+                await self._on_oidc_login(user.id)
+            except Exception:
+                logger.error("OIDC assistant initialization failed user_id=%s", user.id)
                 return self._error_redirect(frontend, "generic")
 
         login_code = secrets.token_urlsafe(32)
