@@ -70,7 +70,7 @@ class ProviderTestBody(BaseModel):
 
 
 class DatabaseSetupBody(BaseModel):
-    driver: str = Field(description="sqlite | postgresql")
+    driver: str = Field(description="sqlite | postgresql | opengauss")
     sqlite_path: str | None = None
     host: str | None = None
     port: int = 5432

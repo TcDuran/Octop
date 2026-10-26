@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from octop.infra.db.pool import DatabasePool
+from octop.infra.db.repos._base import sql_upsert
 
 
 class SettingsRepo:
@@ -20,7 +21,7 @@ class SettingsRepo:
         with self._db.transaction() as conn:
             conn.execute(
                 "INSERT INTO settings(key, value) VALUES(?, ?)"
-                " ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                + sql_upsert(self._db.dialect, "key", "value = excluded.value"),
                 (key, value),
             )
 

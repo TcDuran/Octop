@@ -210,7 +210,7 @@ def _spool_columns(conn: sqlite3.Connection, table: str) -> list[str]:
 
 
 def _table_exists(conn: Any, table: str, *, dialect: str) -> bool:
-    if dialect == "postgresql":
+    if dialect in {"postgresql", "opengauss"}:
         row = conn.execute(
             "SELECT 1 FROM information_schema.tables "
             "WHERE table_schema = current_schema() AND table_name = ?",
@@ -225,7 +225,7 @@ def _table_exists(conn: Any, table: str, *, dialect: str) -> bool:
 
 
 def _column_exists(conn: Any, table: str, column: str, *, dialect: str) -> bool:
-    if dialect == "postgresql":
+    if dialect in {"postgresql", "opengauss"}:
         row = conn.execute(
             "SELECT 1 FROM information_schema.columns "
             "WHERE table_schema = current_schema() AND table_name = ? AND column_name = ?",
@@ -349,7 +349,7 @@ def _apply_user_id_rewrite(
 def _sync_chat_id_sequence(conn: Any, table: str, *, dialect: str) -> None:
     if not _column_exists(conn, table, "id", dialect=dialect):
         return
-    if dialect == "postgresql":
+    if dialect in {"postgresql", "opengauss"}:
         conn.execute(
             f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), "
             f"COALESCE(MAX(id), 1), MAX(id) IS NOT NULL) FROM {table}"

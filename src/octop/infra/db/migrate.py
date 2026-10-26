@@ -37,6 +37,10 @@ def _split_pg_sql(sql: str) -> list[str]:
 
 
 def _discover(dialect: str = "sqlite") -> list[tuple[int, Path]]:
+    if dialect == "opengauss":
+        from octop.infra.db.opengauss.migrate import discover_migrations
+
+        return discover_migrations()
     out: list[tuple[int, Path]] = []
     if not _MIGRATIONS_DIR.exists():
         return out
@@ -76,7 +80,7 @@ def _current_version(db: DatabasePool) -> int:
 
 def _table_columns(db: DatabasePool, table: str) -> set[str]:
     with db.connect() as conn:
-        if db.dialect == "postgresql":
+        if db.dialect in {"postgresql", "opengauss"}:
             rows = conn.execute(
                 "SELECT column_name FROM information_schema.columns "
                 "WHERE table_schema = current_schema() AND table_name = ?",
@@ -95,7 +99,7 @@ def _table_columns(db: DatabasePool, table: str) -> set[str]:
 
 def _table_exists(db: DatabasePool, table: str) -> bool:
     with db.connect() as conn:
-        if db.dialect == "postgresql":
+        if db.dialect in {"postgresql", "opengauss"}:
             row = conn.execute(
                 "SELECT 1 FROM information_schema.tables "
                 "WHERE table_schema = current_schema() AND table_name = ?",
@@ -1682,6 +1686,10 @@ def _repair_legacy_schema(db: DatabasePool) -> None:
 
 def _max_discovered_version(dialect: str) -> int:
     versions = [version for version, _ in _discover(dialect)]
+    if dialect == "opengauss":
+        from octop.infra.db.opengauss.migrate import BASELINE_VERSION
+
+        return max([BASELINE_VERSION, *versions])
     return max(versions) if versions else 0
 
 
@@ -2065,6 +2073,11 @@ def _ensure_automation_analysis_schema(db: DatabasePool) -> None:
 
 
 def run_migrations(db: DatabasePool) -> None:
+    if db.dialect == "opengauss":
+        from octop.infra.db.opengauss.migrate import run_opengauss_migrations
+
+        run_opengauss_migrations(db)
+        return
     if db.dialect == "sqlite":
         _repair_legacy_schema(db)
     for version, path in _discover(db.dialect):

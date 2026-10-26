@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 from octop.infra.db.pool import DatabasePool
-from octop.infra.db.repos._base import DbRow, now_ts, sql_in_placeholders
+from octop.infra.db.repos._base import DbRow, now_ts, opengauss_upsert_by_key, sql_in_placeholders
 from octop.infra.utils.ulid import new_ulid
 
 
@@ -95,6 +95,23 @@ class UserPolicyRepo:
                         WHERE user_id = ? AND name = ?
                         """,
                         (ts, user_id, name),
+                    )
+                    continue
+                if self._db.dialect == "opengauss":
+                    opengauss_upsert_by_key(
+                        conn,
+                        "user_policies",
+                        {
+                            "policy_id": new_ulid(),
+                            "user_id": user_id,
+                            "name": name,
+                            "enabled": 1,
+                            "value": value,
+                            "created_at": ts,
+                            "updated_at": ts,
+                        },
+                        ("user_id", "name"),
+                        ("enabled", "value", "updated_at"),
                     )
                     continue
                 conn.execute(

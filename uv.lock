@@ -2622,7 +2622,7 @@ requires-dist = [
     { name = "huggingface-hub", marker = "extra == 'local-embedding'", specifier = ">=0.20" },
     { name = "josepy", specifier = ">=2.2.0" },
     { name = "langchain-core", specifier = ">=1.4.8" },
-    { name = "langgraph-checkpoint-postgres", specifier = ">=2.0" },
+    { name = "langgraph-checkpoint-postgres", specifier = "==3.1.0" },
     { name = "lark-oapi", specifier = ">=1.7.3" },
     { name = "ldap3", specifier = ">=2.9.1" },
     { name = "mcp", specifier = ">=1.9,<2" },
@@ -2631,7 +2631,7 @@ requires-dist = [
     { name = "octop-browser", specifier = ">=1.0.0" },
     { name = "octop-gateway", specifier = ">=1.0.3" },
     { name = "octop-harness", extras = ["all"], specifier = ">=1.0.4" },
-    { name = "octop-memory", specifier = ">=1.0.2" },
+    { name = "octop-memory", path = "vendor/octop-memory/octop_memory-1.0.2+opengauss.2.tar.gz" },
     { name = "onnxruntime", marker = "extra == 'knowledge-ocr'", specifier = ">=1.17" },
     { name = "openpyxl", specifier = ">=3.1" },
     { name = "pillow", specifier = ">=10.0" },
@@ -2765,12 +2765,28 @@ all = [
 
 [[package]]
 name = "octop-memory"
-version = "1.0.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/9b/e5/c0c9d2fcf6271bcd0711899b0d3cde1a5eceb8b2272e3a5e434ae5b49405/octop_memory-1.0.2.tar.gz", hash = "sha256:6234797fff4ea340cad2fc51b73f1e4e9931a8680ed448c1fe95d37c1e8ae961", size = 596906, upload-time = "2026-10-16T09:21:05.605Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/91/ec/f51f5f91c1396d3f9dbdc9d4c5376fa102165c74b03df4b2f32ffbe6c601/octop_memory-1.0.2-py3-none-any.whl", hash = "sha256:e0b661883007f091c97cab4730031de87593d7bb11c94ec3d214ec37cbd71d71", size = 384679, upload-time = "2026-10-16T09:21:04.259Z" },
+version = "1.0.2+opengauss.2"
+source = { path = "vendor/octop-memory/octop_memory-1.0.2+opengauss.2.tar.gz" }
+sdist = { hash = "sha256:bc8123739cdbd2dda9fa319d891adb0d609178ee2a9347bd9661502a4e9b2a8c" }
+
+[package.metadata]
+requires-dist = [
+    { name = "chromadb", marker = "extra == 'chroma'", specifier = ">=0.4" },
+    { name = "click", marker = "extra == 'cli'", specifier = ">=8.0" },
+    { name = "click", marker = "extra == 'dashboard'", specifier = ">=8.0" },
+    { name = "fastapi", marker = "extra == 'dashboard'", specifier = ">=0.110" },
+    { name = "langgraph-checkpoint", marker = "extra == 'langgraph'", specifier = ">=2.0" },
+    { name = "langgraph-checkpoint", marker = "extra == 'langgraph-postgres'", specifier = ">=2.0" },
+    { name = "langgraph-checkpoint-postgres", marker = "extra == 'langgraph-postgres'", specifier = ">=2.0" },
+    { name = "langgraph-checkpoint-sqlite", marker = "extra == 'langgraph'", specifier = ">=2.0" },
+    { name = "psycopg", extras = ["binary"], marker = "extra == 'langgraph-postgres'", specifier = ">=3.1" },
+    { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.1" },
+    { name = "psycopg-pool", marker = "extra == 'postgres'", specifier = ">=3.2" },
+    { name = "qdrant-client", marker = "extra == 'qdrant'", specifier = ">=1.7" },
+    { name = "sentence-transformers", marker = "extra == 'embeddings'", specifier = ">=2.2" },
+    { name = "uvicorn", extras = ["standard"], marker = "extra == 'dashboard'", specifier = ">=0.29" },
 ]
+provides-extras = ["postgres", "chroma", "qdrant", "embeddings", "langgraph", "langgraph-postgres", "cli", "dashboard"]
 
 [[package]]
 name = "omegaconf"

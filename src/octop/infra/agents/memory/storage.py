@@ -28,7 +28,7 @@ def sqlite_store_is_shared(registry: Any, agent_id: str, memory: Any) -> bool:
 
 
 def inspect_storage(memory: Any, *, blocked_reason: str | None) -> dict[str, Any]:
-    if type(memory.backend).__name__ == "PostgresMemoryBackend":
+    if type(memory.backend).__name__ in {"PostgresMemoryBackend", "OpenGaussMemoryBackend"}:
         from octop.infra.agents.memory.postgres_storage import inspect_postgres_storage
 
         return inspect_postgres_storage(memory.backend, blocked_reason=blocked_reason)

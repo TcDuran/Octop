@@ -432,7 +432,7 @@ def _purge_agent_memory(
     memory = _open_memory(ns, backend, backend_config)
     try:
         store = getattr(memory, "_backend", None)
-        if backend == "postgres":
+        if backend in {"postgres", "opengauss"}:
             _purge_postgres_namespace(store)
         else:
             _drop_sqlite_namespace(store)
@@ -746,7 +746,7 @@ def sweep_deleted_residuals(
     threads_removed = 0
     namespaces_removed = 0
     seen_dsn: set[str] = set()
-    if config.database.is_postgresql:
+    if config.database.is_postgresql or config.database.is_opengauss:
         dsn = config.database.postgresql_conninfo()
         seen_dsn.add(dsn)
         threads_removed += _delete_postgres_orphan_checkpoints(dsn, live_threads)
@@ -760,7 +760,7 @@ def sweep_deleted_residuals(
             octop_config=config,
             workspace_dir=workspace,
         )
-        if backend == "postgres":
+        if backend in {"postgres", "opengauss"}:
             dsn = str((backend_config or {}).get("dsn") or "")
             if dsn and dsn not in seen_dsn:
                 seen_dsn.add(dsn)
@@ -821,7 +821,9 @@ def _delete_postgres_orphan_checkpoints(dsn: str, live_threads: set[str]) -> int
     import psycopg
 
     with psycopg.connect(dsn, autocommit=True) as conn, conn.cursor() as cur:
-        cur.execute("SELECT to_regclass('public.checkpoints')")
+        cur.execute(
+            "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='checkpoints'"
+        )
         found = cur.fetchone()
         if found is None or found[0] is None:
             return 0
@@ -836,7 +838,10 @@ def _delete_postgres_orphan_checkpoints(dsn: str, live_threads: set[str]) -> int
         if not orphan_ids:
             return 0
         for table in ("checkpoints", "checkpoint_blobs", "checkpoint_writes"):
-            cur.execute("SELECT to_regclass(%s)", (f"public.{table}",))
+            cur.execute(
+                "SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=%s",
+                (table,),
+            )
             found = cur.fetchone()
             if found is None or found[0] is None:
                 continue

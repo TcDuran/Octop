@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 
 from octop.infra.db.pool import DatabasePool
-from octop.infra.db.repos._base import DbRow, bool_int, map_rows, now_ts
+from octop.infra.db.repos._base import DbRow, bool_int, map_rows, now_ts, sql_upsert
 from octop.infra.utils.thread_artifact import (
     MAX_THREAD_ARTIFACTS,
     ThreadArtifact,
@@ -181,7 +181,7 @@ class ThreadRepo:
             )
             conn.execute(
                 "INSERT INTO thread_history_projection(thread_id, status, updated_at, error) "
-                "VALUES (?, 'ready', ?, NULL) ON CONFLICT(thread_id) DO NOTHING",
+                "VALUES (?, 'ready', ?, NULL)" + sql_upsert(self._db.dialect, "thread_id"),
                 (thread_id, ts),
             )
 

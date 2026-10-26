@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import time
 from collections.abc import Mapping, Sequence
 from typing import Any, Protocol, TypeVar
@@ -66,7 +68,7 @@ def sql_in_placeholders(count: int) -> str:
 
 def sql_unix_day_bucket(column: str, *, dialect: str = "sqlite") -> str:
     """Expression that buckets a unix-epoch integer column into YYYY-MM-DD."""
-    if dialect == "postgresql":
+    if dialect in {"postgresql", "opengauss"}:
         return f"to_char(to_timestamp({column}), 'YYYY-MM-DD')"
     return f"date({column}, 'unixepoch')"
 
@@ -79,3 +81,60 @@ def insert_returning_id(conn: Any, sql: str, params: Sequence[object]) -> int:
     if isinstance(row, Mapping):
         return int(row["id"])
     return int(row[0])
+
+
+def sql_upsert(dialect: str, target: str, assignments: str = "") -> str:
+    """Conflict clause for tables with one supplied unique key.
+
+    openGauss cannot select a conflict target. Multi-unique tables must use
+    ``opengauss_upsert_by_key`` instead. All arguments are internal SQL literals.
+    """
+    if dialect == "opengauss":
+        return " ON DUPLICATE KEY UPDATE " + (assignments or "NOTHING")
+    clause = f" ON CONFLICT({target})" if target else " ON CONFLICT"
+    return clause + (f" DO UPDATE SET {assignments}" if assignments else " DO NOTHING")
+
+
+def opengauss_key_lock(conn: Any, table: str, values: Sequence[object]) -> None:
+    """Transaction-scoped lock for a possibly absent logical row.
+
+    A stable signed 64-bit digest avoids relying on PostgreSQL-only hash
+    functions. Hash collisions only serialize unrelated writers.
+    """
+    raw = json.dumps([table, *values], ensure_ascii=False, separators=(",", ":"))
+    key = int.from_bytes(hashlib.sha256(raw.encode()).digest()[:8], "big", signed=True)
+    conn.execute("SELECT pg_advisory_xact_lock(?)", (key,))
+
+
+def opengauss_upsert_by_key(
+    conn: Any,
+    table: str,
+    values: Mapping[str, object],
+    key_columns: Sequence[str],
+    update_columns: Sequence[str],
+    *,
+    condition: str = "",
+    condition_params: Sequence[object] = (),
+) -> Any:
+    """Preserve an exact conflict target on a table with multiple unique keys.
+
+    Must run inside a transaction; all upsert writers of this logical key must
+    use the same lock. Other unique violations are intentionally propagated.
+    Null key parts never conflict under ordinary UNIQUE semantics.
+    """
+    key_values = [values[column] for column in key_columns]
+    opengauss_key_lock(conn, table, key_values)
+    where = " AND ".join(f"{column} = ?" for column in key_columns)
+    existing = conn.execute(
+        f"SELECT 1 FROM {table} WHERE {where} FOR UPDATE", key_values
+    ).fetchone()
+    if existing is not None:
+        assignment = ", ".join(f"{column} = ?" for column in update_columns)
+        params = [values[column] for column in update_columns] + key_values + list(condition_params)
+        suffix = f" AND ({condition})" if condition else ""
+        return conn.execute(f"UPDATE {table} SET {assignment} WHERE {where}{suffix}", params)
+    columns = ", ".join(values)
+    placeholders = sql_in_placeholders(len(values))
+    return conn.execute(
+        f"INSERT INTO {table}({columns}) VALUES ({placeholders})", list(values.values())
+    )

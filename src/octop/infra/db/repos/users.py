@@ -7,7 +7,14 @@ import json
 from dataclasses import dataclass, field
 
 from octop.infra.db.pool import DatabasePool
-from octop.infra.db.repos._base import DbRow, bool_int, insert_returning_id, map_rows, now_ts
+from octop.infra.db.repos._base import (
+    DbRow,
+    bool_int,
+    insert_returning_id,
+    map_rows,
+    now_ts,
+    opengauss_upsert_by_key,
+)
 
 
 def _parse_permissions(raw: object) -> builtins.list[str]:
@@ -187,12 +194,28 @@ class UserRepo:
         """Link ``(provider_id, subject)`` to ``user_id`` (one subject per provider)."""
         ts = now_ts()
         with self._db.transaction() as conn:
-            conn.execute(
-                "INSERT INTO user_sso_identities(user_id, provider_id, subject, created_at) "
-                "VALUES (?, ?, ?, ?) "
-                "ON CONFLICT(user_id, provider_id) DO UPDATE SET subject = excluded.subject",
-                (user_id, provider_id, subject, ts),
-            )
+            if self._db.dialect == "opengauss":
+                # Serialize the legacy primary slot with identity removal too.
+                conn.execute("SELECT id FROM users WHERE id = ? FOR UPDATE", (user_id,))
+                opengauss_upsert_by_key(
+                    conn,
+                    "user_sso_identities",
+                    {
+                        "user_id": user_id,
+                        "provider_id": provider_id,
+                        "subject": subject,
+                        "created_at": ts,
+                    },
+                    ("user_id", "provider_id"),
+                    ("subject",),
+                )
+            else:
+                conn.execute(
+                    "INSERT INTO user_sso_identities(user_id, provider_id, subject, created_at) "
+                    "VALUES (?, ?, ?, ?) "
+                    "ON CONFLICT(user_id, provider_id) DO UPDATE SET subject = excluded.subject",
+                    (user_id, provider_id, subject, ts),
+                )
             conn.execute(
                 "UPDATE users SET sso_provider_id = ?, sso_subject = ? WHERE id = ?",
                 (provider_id, subject, user_id),
@@ -201,6 +224,8 @@ class UserRepo:
     def remove_sso_identity(self, user_id: int, *, provider_id: int) -> bool:
         """Remove one provider link. Returns True when a row was deleted."""
         with self._db.transaction() as conn:
+            if self._db.dialect == "opengauss":
+                conn.execute("SELECT id FROM users WHERE id = ? FOR UPDATE", (user_id,))
             cur = conn.execute(
                 "DELETE FROM user_sso_identities WHERE user_id = ? AND provider_id = ?",
                 (user_id, provider_id),

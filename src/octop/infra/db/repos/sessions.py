@@ -9,7 +9,13 @@ from typing import Any
 from octop_gateway.models import ChannelSubject
 
 from octop.infra.db.pool import DatabasePool
-from octop.infra.db.repos._base import DbRow, now_ts, sql_in_placeholders
+from octop.infra.db.repos._base import (
+    DbRow,
+    now_ts,
+    opengauss_key_lock,
+    sql_in_placeholders,
+    sql_upsert,
+)
 from octop.infra.utils.weixin_context import (
     merge_weixin_context_token,
     selected_weixin_token,
@@ -149,6 +155,8 @@ class SessionRepo:
         )
         ts = now_ts()
         with self._db.transaction() as conn:
+            if self._db.dialect == "opengauss":
+                opengauss_key_lock(conn, "sessions", (session_key,))
             current = conn.execute(
                 "SELECT channel_metadata FROM sessions WHERE session_key = ?",
                 (session_key,),
@@ -162,13 +170,16 @@ class SessionRepo:
                 "INSERT INTO sessions(session_key, agent_id, user_id, channel_type, "
                 "chat_type, thread_id, updated_at, channel_subject_id, channel_chat_type, "
                 "channel_metadata, channel_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
-                "ON CONFLICT(session_key) DO UPDATE SET "
-                "agent_id = excluded.agent_id, "
-                "thread_id = excluded.thread_id, updated_at = excluded.updated_at, "
-                "channel_subject_id = excluded.channel_subject_id, "
-                "channel_chat_type = excluded.channel_chat_type, "
-                "channel_metadata = excluded.channel_metadata, "
-                "channel_id = COALESCE(excluded.channel_id, sessions.channel_id)",
+                + sql_upsert(
+                    self._db.dialect,
+                    "session_key",
+                    "agent_id = excluded.agent_id, "
+                    "thread_id = excluded.thread_id, updated_at = excluded.updated_at, "
+                    "channel_subject_id = excluded.channel_subject_id, "
+                    "channel_chat_type = excluded.channel_chat_type, "
+                    "channel_metadata = excluded.channel_metadata, "
+                    "channel_id = COALESCE(excluded.channel_id, sessions.channel_id)",
+                ),
                 (
                     session_key,
                     agent_id,

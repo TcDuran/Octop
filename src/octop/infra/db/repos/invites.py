@@ -7,7 +7,13 @@ from dataclasses import dataclass
 from typing import Any
 
 from octop.infra.db.pool import DatabasePool
-from octop.infra.db.repos._base import DbRow, insert_returning_id, map_rows, now_ts
+from octop.infra.db.repos._base import (
+    DbRow,
+    insert_returning_id,
+    map_rows,
+    now_ts,
+    opengauss_upsert_by_key,
+)
 from octop.infra.utils.ulid import new_ulid
 
 
@@ -186,7 +192,9 @@ class InviteRepo:
                 ),
             )
             if policies:
-                _insert_named_policies(conn, user_id=user_id, policies=policies, ts=ts)
+                _insert_named_policies(
+                    conn, user_id=user_id, policies=policies, ts=ts, dialect=self._db.dialect
+                )
             updated = conn.execute(
                 "UPDATE user_invites SET used_at = ?, used_by_user_id = ? "
                 "WHERE id = ? AND used_at IS NULL AND revoked_at IS NULL AND expires_at > ?",
@@ -205,8 +213,26 @@ def _insert_named_policies(
     user_id: int,
     policies: list[tuple[str, str]],
     ts: int,
+    dialect: str = "sqlite",
 ) -> None:
     for name, value in policies:
+        if dialect == "opengauss":
+            opengauss_upsert_by_key(
+                conn,
+                "user_policies",
+                {
+                    "policy_id": new_ulid(),
+                    "user_id": user_id,
+                    "name": name,
+                    "enabled": 1,
+                    "value": value,
+                    "created_at": ts,
+                    "updated_at": ts,
+                },
+                ("user_id", "name"),
+                ("enabled", "value", "updated_at"),
+            )
+            continue
         conn.execute(
             """
             INSERT INTO user_policies(

@@ -1,0 +1,222 @@
+{
+  "run_id": "3be85681",
+  "databases": [
+    "octop_verify_20261022_3be85681",
+    "octop_verify_restore_20261022_3be85681"
+  ],
+  "results": [
+    {
+      "name": "create_isolated_database",
+      "status": "passed",
+      "evidence": {
+        "database": "octop_verify_20261022_3be85681",
+        "oid": 87896,
+        "owner": "plat"
+      }
+    },
+    {
+      "name": "create_isolated_database",
+      "status": "passed",
+      "evidence": {
+        "database": "octop_verify_restore_20261022_3be85681",
+        "oid": 87897,
+        "owner": "plat"
+      }
+    },
+    {
+      "name": "isolated_database_identity",
+      "status": "passed",
+      "evidence": [
+        "octop_verify_20261022_3be85681",
+        "plat",
+        "(openGauss 6.0.5 build 5ba692ab) compiled at 2026-05-07 12:36:04 commit 0 last mr 9228  on x86_64-unknown-linux-gnu, compiled by g++ (GCC) 10.3.0, 64-bit"
+      ]
+    },
+    {
+      "name": "isolated_database_settings",
+      "status": "passed",
+      "evidence": [
+        [
+          "enable_default_ustore_table",
+          "off",
+          null
+        ],
+        [
+          "lockwait_timeout",
+          "1200000",
+          "ms"
+        ],
+        [
+          "sql_compatibility",
+          "PG",
+          null
+        ]
+      ]
+    },
+    {
+      "name": "followup_fixture_setup",
+      "status": "passed",
+      "evidence": "test fixtures only; no application initialization claim",
+      "scope": "fixture",
+      "seconds": 1.971
+    },
+    {
+      "name": "metadata_checked_incremental_upgrade",
+      "status": "passed",
+      "evidence": {
+        "original_add_column_rejected": {
+          "expected_sqlstate": "42601",
+          "message": "syntax error at or near \"NOT\""
+        },
+        "metadata_checked_alter_repeat_passed": true,
+        "scope": "sample incremental migration only; no Octop openGauss migration exists yet"
+      },
+      "scope": "prototype",
+      "seconds": 1.548
+    },
+    {
+      "name": "memory_bootstrap_with_two_exact_adaptations",
+      "status": "passed",
+      "evidence": {
+        "tables": [
+          [
+            "aliases"
+          ],
+          [
+            "atoms"
+          ],
+          [
+            "candidates"
+          ],
+          [
+            "digests"
+          ],
+          [
+            "entities"
+          ],
+          [
+            "entity_pages"
+          ],
+          [
+            "episodes"
+          ],
+          [
+            "journal"
+          ],
+          [
+            "memory_nodes"
+          ],
+          [
+            "meta"
+          ],
+          [
+            "raw_events"
+          ],
+          [
+            "thread_active_entities"
+          ]
+        ],
+        "adaptations": [
+          "lockwait_timeout",
+          "meta_single_primary_key_upsert"
+        ],
+        "scope": "DDL bootstrap only; not full memory business regression"
+      },
+      "scope": "prototype",
+      "seconds": 7.346
+    },
+    {
+      "name": "unmodified_checkpoint_migrations",
+      "status": "failed",
+      "evidence": "syntax error at or near \"NOT\"",
+      "scope": "application",
+      "sqlstate": "42601",
+      "error_type": "SyntaxError",
+      "seconds": 3.16
+    },
+    {
+      "name": "prototype_checkpoint_graph_restart_idempotency",
+      "status": "failed",
+      "evidence": "could not find range type for data type bytea[]",
+      "scope": "prototype",
+      "sqlstate": "42704",
+      "error_type": "UndefinedObject",
+      "seconds": 3.546
+    },
+    {
+      "name": "prototype_checkpoint_interrupt_resume",
+      "status": "failed",
+      "evidence": "could not find range type for data type bytea[]",
+      "scope": "prototype",
+      "sqlstate": "42704",
+      "error_type": "UndefinedObject",
+      "seconds": 0.181
+    },
+    {
+      "name": "matching_backup_tool_version",
+      "status": "passed",
+      "evidence": {
+        "returncode": 0,
+        "output": "gs_dump (openGauss 6.0.5 build 5ba692ab) compiled at 2026-05-07 12:36:04 commit 0 last mr 9228 \n"
+      },
+      "scope": "backup",
+      "seconds": 0.809
+    },
+    {
+      "name": "gs_dump_custom_archive",
+      "status": "passed",
+      "evidence": {
+        "returncode": 0,
+        "output": "=============         ] 83% (31/37, cur_step/total_step). reading row level security policies \nProgress: [=============================================     ] 91% (34/37, cur_step/total_step). reading publication membership \nProgress: [==================================================] 100% (38/37, cur_step/total_step). finish scanning database                       \ngs_dump[port='15434'][octop_verify_20261022_3be85681][2026-10-22 06:36:44]: Finish scanning database. \ngs_dump[port='15434'][octop_verify_20261022_3be85681][2026-10-22 06:36:44]: Start dumping objects \nProgress: [                                                  ] 0% (0/4376, dumpObjNums/totalObjNums). dump objects \nProgress: [========                                          ] 17% (751/4376, dumpObjNums/totalObjNums). dump objects \nProgress: [====================================              ] 73% (3209/4376, dumpObjNums/totalObjNums). dump objects \nProgress: [================================================= ] 98% (4290/4376, dumpObjNums/totalObjNums). dump objects \nProgress: [==================================================] 100% (4376/4376, dumpObjNums/totalObjNums). dump objects \ngs_dump[port='15434'][octop_verify_20261022_3be85681][2026-10-22 06:36:47]: Finish dumping objects \ngs_dump[port='15434'][octop_verify_20261022_3be85681][2026-10-22 06:36:47]: dump database octop_verify_20261022_3be85681 successfully\ngs_dump[port='15434'][octop_verify_20261022_3be85681][2026-10-22 06:36:47]: total time: 15054  ms\n"
+      },
+      "scope": "backup",
+      "seconds": 15.629
+    },
+    {
+      "name": "gs_restore_into_second_empty_database",
+      "status": "passed",
+      "evidence": {
+        "returncode": 0,
+        "output": "l_entries). restore entires \nProgress: [==============================                    ] 60% (82/135, restored_entries/total_entries). restore entires \nProgress: [===============================                   ] 62% (85/135, restored_entries/total_entries). restore entires \nProgress: [=================================                 ] 66% (90/135, restored_entries/total_entries). restore entires \nProgress: [===================================               ] 71% (96/135, restored_entries/total_entries). restore entires \nProgress: [=====================================             ] 74% (101/135, restored_entries/total_entries). restore entires \nProgress: [=======================================           ] 78% (106/135, restored_entries/total_entries). restore entires \nProgress: [=========================================         ] 82% (112/135, restored_entries/total_entries). restore entires \nProgress: [===========================================       ] 86% (117/135, restored_entries/total_entries). restore entires \nProgress: [=============================================     ] 90% (122/135, restored_entries/total_entries). restore entires \nProgress: [===============================================   ] 95% (129/135, restored_entries/total_entries). restore entires \nProgress: [==================================================] 100% (135/135, restored_entries/total_entries). restore entires \nend restore operation ...\nrestore operation successful\ntotal time: 23660  ms\n"
+      },
+      "scope": "backup",
+      "seconds": 24.265
+    },
+    {
+      "name": "backup_restore_data_and_generated_behavior",
+      "status": "passed",
+      "evidence": {
+        "snapshot_equal": true,
+        "generated_column_after_restore": true,
+        "sequence_and_gin": true
+      },
+      "scope": "backup",
+      "seconds": 0.407
+    },
+    {
+      "name": "cleanup_database",
+      "status": "passed",
+      "evidence": {
+        "database": "octop_verify_restore_20261022_3be85681",
+        "oid": 87897
+      }
+    },
+    {
+      "name": "cleanup_database",
+      "status": "passed",
+      "evidence": {
+        "database": "octop_verify_20261022_3be85681",
+        "oid": 87896
+      }
+    },
+    {
+      "name": "cleanup_verification",
+      "status": "passed",
+      "evidence": {
+        "database_catalog_unchanged": true,
+        "test_databases_absent": true,
+        "management_read_only": "on"
+      }
+    }
+  ]
+}

@@ -26,6 +26,7 @@ from octop.infra.backup.chats import (
     restore_preserved_chats,
     strip_chat_tables_from_sqlite_file,
 )
+from octop.infra.backup.gs_dump import dump_opengauss, restore_opengauss
 from octop.infra.backup.manifest import MANIFEST_VERSION, AgentBackupEntry, BackupManifest
 from octop.infra.backup.pg_dump import dump_postgres, restore_postgres
 from octop.infra.backup.snapshot import (
@@ -209,10 +210,10 @@ def create_system_backup(
     Returns the suggested basename (``octop-backup-….tar.gz``). Callers that
     need a different name should rename/move *dest* afterward.
     """
-    if pool.dialect == "postgresql":
+    if pool.dialect in {"postgresql", "opengauss"}:
         db_arc = _PG_DUMP_ARC
-        database_driver = "postgresql"
-        database_dump_format = "pg_custom"
+        database_driver = pool.dialect
+        database_dump_format = "og_custom" if pool.dialect == "opengauss" else "pg_custom"
     else:
         db_arc = _SQLITE_DB_ARC
         database_driver = "sqlite"
@@ -256,8 +257,9 @@ def create_system_backup(
                 # Snapshot the child archive before the main thread registry.
                 # A fully consistent multi-file restore still requires quiescence.
                 snapshot_sqlite_file(history_path, history_dest)
-            if pool.dialect == "postgresql":
-                dump_postgres(
+            if pool.dialect in {"postgresql", "opengauss"}:
+                dump = dump_opengauss if pool.dialect == "opengauss" else dump_postgres
+                dump(
                     db_config.postgresql_conninfo(),
                     db_dest,
                     exclude_table_data=() if include_chats else CHAT_TABLES_CHILD_FIRST,
@@ -474,6 +476,13 @@ def restore_system_backup(
                 details={"archive_driver": archive_driver, "runtime_driver": pool.dialect},
             )
 
+        if pool.dialect == "opengauss" and manifest.database_dump_format != "og_custom":
+            raise OctopError(
+                ErrorCode.BACKUP_DRIVER_MISMATCH,
+                "openGauss restore requires an og_custom archive",
+                status=400,
+            )
+
         runtime_schema_version = _max_discovered_version(pool.dialect)
         if manifest.schema_version > runtime_schema_version:
             details = {
@@ -519,8 +528,9 @@ def restore_system_backup(
                     )
 
         ownership_remap: dict[str, int] | None = None
-        if pool.dialect == "postgresql":
-            restore_postgres(db_config.postgresql_conninfo(), db_path)
+        if pool.dialect in {"postgresql", "opengauss"}:
+            restore = restore_opengauss if pool.dialect == "opengauss" else restore_postgres
+            restore(db_config.postgresql_conninfo(), db_path)
         else:
             if isinstance(pool, SqlitePool):
                 restore_sqlite_into_pool(db_path, pool)
