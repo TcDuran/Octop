@@ -143,9 +143,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     && apt-get purge -y --auto-remove build-essential \
     && rm -rf /var/lib/apt/lists/* /tmp/*
 
-# 修复 octop-harness 的 MCP 工具参数类型降级(object/array 被声明为 str,
-# 导致嵌套参数被模型序列化成字符串、服务端校验拒绝)。构建期对安装的
-# octop_harness 包打幂等补丁,锚点失效时构建失败以提示复核。
+# octop-harness 1.0.5 已保留 enum/array 类型；构建期补丁只补齐
+# LangChain 重建时丢失的嵌套 object properties，锚点失效时构建失败提示复核。
 COPY docker/patches/patch_harness_mcp.py /tmp/patch_harness_mcp.py
 RUN python /tmp/patch_harness_mcp.py && rm -f /tmp/patch_harness_mcp.py
 
@@ -154,7 +153,7 @@ RUN mkdir -p /data/.octop
 EXPOSE 8088
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
-    CMD ["python", "-c", "from octop.config import load_config; from octop.infra.utils.paths import PathLayout; from urllib.request import urlopen; from octop.infra.utils.env_file import apply_env_file, env_file_path; p=PathLayout.from_env(); apply_env_file(env_file_path(p.root)); c=load_config(p.config); urlopen(f'http://127.0.0.1:{c.port}{c.base_path}/api/health', timeout=5).read()"]
+    CMD ["sh", "-c", "curl -f http://localhost:${OCTOP_PORT:-8088}/api/health || exit 1"]
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD []

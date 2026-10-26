@@ -13,7 +13,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse
 from scalar_fastapi import get_scalar_api_reference
 
-from octop.api.deployment import BasePathMiddleware, InternalApp, dashboard_html
 from octop.api.middleware.jwt_auth import install as install_jwt_auth
 from octop.api.middleware.setup_lockdown import install as install_setup_lockdown
 from octop.api.openapi_meta import API_DESCRIPTION, OPENAPI_TAGS, configure_openapi
@@ -58,6 +57,18 @@ def is_dashboard_asset_path(full_path: str) -> bool:
     return full_path.startswith("assets/")
 
 
+def _dashboard_fallback(index_file: Path, full_path: str) -> FileResponse:
+    """Serve the SPA shell for routes; 404 for a missing hashed asset.
+
+    Answering ``/assets/index.<old-hash>.js`` with ``index.html`` makes the
+    browser reject HTML as a module script ("not a valid JavaScript MIME
+    type"), which hides the real cause — a stale shell after an upgrade.
+    """
+    if is_dashboard_asset_path(full_path):
+        raise HTTPException(status_code=404, detail="Not Found")
+    return _dashboard_response(index_file, "")
+
+
 def _mount_routers(app: FastAPI, mounts: Sequence[_RouterMount]) -> None:
     for spec in mounts:
         app.include_router(spec.router, prefix=spec.prefix, tags=list(spec.tags))
@@ -91,7 +102,6 @@ def build_app(server: OctopServer) -> FastAPI:
     cfg = server.services.config if server.services else getattr(server, "config", None)
     enable_dashboard = cfg.enable_dashboard if cfg else True
     enable_api_docs = cfg.enable_api_docs if cfg else False
-    base_path = cfg.base_path if cfg else ""
     enable_mobile = (
         cfg.capabilities.mobile.enabled if cfg and cfg.capabilities.mobile.enabled else False
     )
@@ -102,9 +112,6 @@ def build_app(server: OctopServer) -> FastAPI:
         description=API_DESCRIPTION,
         openapi_url="/api/openapi.json" if enable_api_docs else None,
         openapi_tags=OPENAPI_TAGS,
-        servers=[{"url": base_path}] if base_path else None,
-        docs_url=None,
-        redoc_url=None,
     )
     configure_openapi(app)
     app.state.octop_server = server
@@ -135,7 +142,7 @@ def build_app(server: OctopServer) -> FastAPI:
         from octop.api.routers.browser.stream import run_browser_stream_session
 
         server.app_runtime.bridge_manager.bind_asgi_app(
-            InternalApp(app) if base_path else app,
+            app,
             peer_turn_runner=prepare_peer_dashboard_turn,
             peer_browser_runner=run_browser_stream_session,
         )
@@ -196,9 +203,11 @@ def build_app(server: OctopServer) -> FastAPI:
         subagents,
         teams,
         terminal,
+        text_assist,
         update,
         uploads,
         usage,
+        user_groups,
         user_roles,
         users,
         voice,
@@ -228,6 +237,7 @@ def build_app(server: OctopServer) -> FastAPI:
             _RouterMount(health.router, "/api/health", ["health"]),
             _RouterMount(invites.admin_router, "/api/users/invites", ["users"]),
             _RouterMount(user_roles.router, "/api/users/roles", ["users"]),
+            _RouterMount(user_groups.router, "/api/user-groups", ["users"]),
             _RouterMount(users.router, "/api/users", ["users"]),
             _RouterMount(agents.router, "/api/agents", ["agents"]),
             _RouterMount(agent_tools.router, "/api", ["agents"]),
@@ -267,6 +277,7 @@ def build_app(server: OctopServer) -> FastAPI:
             _RouterMount(mbti.router, "/api", ["mbti"]),
             _RouterMount(experts.router, "/api", ["experts"]),
             _RouterMount(teams.router, "/api", ["teams"]),
+            _RouterMount(text_assist.router, "/api", ["text-assist"]),
             _RouterMount(workspace.router, "/api", ["workspace"]),
             _RouterMount(agent_files.router, "/api", ["agent_files"]),
             _RouterMount(memory.router, "/api", ["memory"]),
@@ -298,34 +309,11 @@ def build_app(server: OctopServer) -> FastAPI:
         )
 
     if enable_api_docs:
-        from fastapi.openapi.docs import (
-            get_redoc_html,
-            get_swagger_ui_html,
-            get_swagger_ui_oauth2_redirect_html,
-        )
-
-        @app.get("/docs", include_in_schema=False)
-        async def swagger_docs() -> HTMLResponse:
-            return get_swagger_ui_html(
-                openapi_url=f"{base_path}{app.openapi_url}",
-                title="Octop API - Swagger UI",
-                oauth2_redirect_url=f"{base_path}/docs/oauth2-redirect",
-            )
-
-        @app.get("/docs/oauth2-redirect", include_in_schema=False)
-        async def swagger_redirect() -> HTMLResponse:
-            return get_swagger_ui_oauth2_redirect_html()
-
-        @app.get("/redoc", include_in_schema=False)
-        async def redoc_docs() -> HTMLResponse:
-            return get_redoc_html(
-                openapi_url=f"{base_path}{app.openapi_url}", title="Octop API - ReDoc"
-            )
 
         @app.get("/api/docs", include_in_schema=False)
         async def api_docs() -> HTMLResponse:
             return get_scalar_api_reference(
-                openapi_url=f"{base_path}{app.openapi_url}",
+                openapi_url=app.openapi_url,
                 title="Octop API",
             )
 
@@ -333,15 +321,9 @@ def build_app(server: OctopServer) -> FastAPI:
         dashboard_dir = Path(__file__).parent.parent / "dashboard"
         index_file = dashboard_dir / "index.html"
         if index_file.exists():
-            index_html = dashboard_html(index_file.read_text(encoding="utf-8"), base_path)
 
-            def shell(full_path: str) -> HTMLResponse:
-                if is_dashboard_asset_path(full_path):
-                    raise HTTPException(status_code=404, detail="Not Found")
-                return HTMLResponse(index_html, headers={"Cache-Control": "no-cache"})
-
-            @app.get("/{full_path:path}", include_in_schema=False, response_model=None)
-            async def spa_fallback(full_path: str) -> FileResponse | HTMLResponse:
+            @app.get("/{full_path:path}", include_in_schema=False)
+            async def spa_fallback(full_path: str) -> FileResponse:
                 if full_path.startswith(("api/", "ws/")):
                     raise HTTPException(status_code=404, detail="Not Found")
 
@@ -350,18 +332,14 @@ def build_app(server: OctopServer) -> FastAPI:
                     # Reject absolute paths and parent-dir references before
                     # joining, so user input never drives a path expression.
                     if raw_path.is_absolute() or ".." in raw_path.parts:
-                        return shell(full_path)
+                        return _dashboard_fallback(index_file, full_path)
                     candidate = (dashboard_dir / Path(*raw_path.parts)).resolve()
                     try:
                         candidate.relative_to(dashboard_dir.resolve())
                     except ValueError:
-                        return shell(full_path)
+                        return _dashboard_fallback(index_file, full_path)
                     if candidate.is_file():
-                        if candidate == index_file.resolve():
-                            return shell(full_path)
                         return _dashboard_response(candidate, full_path)
-                return shell(full_path)
+                return _dashboard_fallback(index_file, full_path)
 
-    if base_path:
-        app.add_middleware(BasePathMiddleware, base_path=base_path)
     return app

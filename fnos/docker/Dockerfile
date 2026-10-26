@@ -115,7 +115,7 @@ RUN mkdir -p /data/.octop
 EXPOSE 8088
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
-    CMD ["python", "-c", "from octop.config import load_config; from octop.infra.utils.paths import PathLayout; from urllib.request import urlopen; from octop.infra.utils.env_file import apply_env_file, env_file_path; p=PathLayout.from_env(); apply_env_file(env_file_path(p.root)); c=load_config(p.config); urlopen(f'http://127.0.0.1:{c.port}{c.base_path}/api/health', timeout=5).read()"]
+    CMD ["sh", "-c", "curl -f http://localhost:${OCTOP_PORT:-8088}/api/health || exit 1"]
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD []

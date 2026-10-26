@@ -1,4 +1,3 @@
-import { withBasePath } from "../../utils/deploymentPath";
 import { Component, type ReactNode } from "react";
 import { Result, Button, Space } from "antd";
 import i18n from "../../i18n";
@@ -57,7 +56,7 @@ export default class GlobalErrorBoundary extends Component<Props, State> {
   };
 
   handleHome = () => {
-    window.location.href = withBasePath("/chat");
+    window.location.href = "/chat";
   };
 
   handleReload = () => {

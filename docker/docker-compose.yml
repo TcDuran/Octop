@@ -8,7 +8,6 @@
 #
 # 可在 docker/ 目录放置 .env 文件，例如:
 #   OCTOP_PORT=9090
-#   OCTOP_BASE_PATH=/octop
 #   OCTOP_DEFAULT_PASSWORD=<your-strong-password>
 #   OCTOP_ADMIN_USERNAME=admin
 #   OCTOP_DATABASE_DRIVER=postgresql
@@ -41,7 +40,6 @@ services:
       - HOME=/data
       - OCTOP_BIND_HOST=0.0.0.0
       - OCTOP_PORT=${OCTOP_PORT:-8088}
-      - OCTOP_BASE_PATH
       - OCTOP_LOG_LEVEL=${OCTOP_LOG_LEVEL:-info}
       - OCTOP_DEFAULT_PASSWORD=${OCTOP_DEFAULT_PASSWORD:-}
       - OCTOP_ADMIN_USERNAME=${OCTOP_ADMIN_USERNAME:-admin}

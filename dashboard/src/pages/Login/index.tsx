@@ -1,4 +1,3 @@
-import { withBasePath } from "../../utils/deploymentPath";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Input, Button, Checkbox } from "antd";
@@ -17,6 +16,7 @@ import {
   type OauthProviderStatus,
 } from "../../api/modules/auth";
 import { apiErrorMessage } from "../../utils/apiError";
+import { publicUrl } from "../../utils/publicUrl";
 import { refreshServerLabels } from "../../i18n";
 import { applyUserLocale, applyGuestLocale } from "../../utils/locale";
 import { useTheme } from "../../context/ThemeContext";
@@ -174,7 +174,7 @@ export default function LoginPage() {
       if (event.data.access_token) {
         setAuthToken(event.data.access_token, event.data.remember ?? true);
       }
-      window.location.replace(withBasePath(event.data.redirect || "/chat"));
+      window.location.replace(event.data.redirect || "/chat");
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
@@ -273,8 +273,8 @@ export default function LoginPage() {
         <img
           src={
             isDark
-              ? "./logo_horizontal_white.png"
-              : "./logo_horizontal_dark.png"
+              ? publicUrl("logo_horizontal_white.png")
+              : publicUrl("logo_horizontal_dark.png")
           }
           alt="Octop"
           style={{

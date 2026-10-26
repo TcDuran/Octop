@@ -1,5 +1,4 @@
 import { request } from "../request";
-import { withBasePath } from "../../utils/deploymentPath";
 
 export type InviteStatus = "pending" | "used" | "expired" | "revoked";
 
@@ -52,7 +51,7 @@ export interface InviteRedeemResponse {
 /** Prefer the browser origin so copied links match how admins reach the UI. */
 export function localInviteUrl(code: string): string {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  return `${origin}${withBasePath("/invite")}?code=${encodeURIComponent(code)}`;
+  return `${origin}/invite?code=${encodeURIComponent(code)}`;
 }
 
 export const invitesApi = {

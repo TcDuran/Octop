@@ -12,11 +12,18 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { requestBlob } from "../api/request";
-import { apiPathFromUrl } from "../utils/deploymentPath";
 import { saveBlobAsFile } from "../utils/saveBlobAsFile";
 import { isDataUrl, needsAuthBlobFetch } from "../utils/toolMediaBlocks";
 
 import { message as antMessage } from "@/utils/antdMessage";
+
+function apiPathForBlobFetch(fetchUrl: string): string {
+  if (fetchUrl.startsWith("http")) {
+    const parsed = new URL(fetchUrl);
+    return parsed.pathname.replace(/^\/api/, "") + parsed.search;
+  }
+  return fetchUrl.replace(/^\/api/, "");
+}
 
 function filenameFromUrl(url: string): string | undefined {
   try {
@@ -63,7 +70,7 @@ export async function downloadAuthFile(
     const res = await fetch(url);
     blob = await res.blob();
   } else {
-    blob = await requestBlob(apiPathFromUrl(url));
+    blob = await requestBlob(apiPathForBlobFetch(url));
   }
 
   await saveBlobAsFile(
