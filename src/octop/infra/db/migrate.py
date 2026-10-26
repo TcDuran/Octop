@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from octop.infra.db.pool import DatabasePool
+from octop.infra.db.repos._base import sql_upsert
 from octop.infra.utils.ulid import new_ulid
 
 _MIGRATIONS_DIR = Path(__file__).parent / "migrations"
@@ -37,6 +38,10 @@ def _split_pg_sql(sql: str) -> list[str]:
 
 
 def _discover(dialect: str = "sqlite") -> list[tuple[int, Path]]:
+    if dialect == "opengauss":
+        from octop.infra.db.opengauss.migrate import discover_migrations
+
+        return discover_migrations()
     out: list[tuple[int, Path]] = []
     if not _MIGRATIONS_DIR.exists():
         return out
@@ -76,7 +81,7 @@ def _current_version(db: DatabasePool) -> int:
 
 def _table_columns(db: DatabasePool, table: str) -> set[str]:
     with db.connect() as conn:
-        if db.dialect == "postgresql":
+        if db.dialect in {"postgresql", "opengauss"}:
             rows = conn.execute(
                 "SELECT column_name FROM information_schema.columns "
                 "WHERE table_schema = current_schema() AND table_name = ?",
@@ -95,7 +100,7 @@ def _table_columns(db: DatabasePool, table: str) -> set[str]:
 
 def _table_exists(db: DatabasePool, table: str) -> bool:
     with db.connect() as conn:
-        if db.dialect == "postgresql":
+        if db.dialect in {"postgresql", "opengauss"}:
             row = conn.execute(
                 "SELECT 1 FROM information_schema.tables "
                 "WHERE table_schema = current_schema() AND table_name = ?",
@@ -1717,6 +1722,10 @@ def _repair_legacy_schema(db: DatabasePool) -> None:
 
 def _max_discovered_version(dialect: str) -> int:
     versions = [version for version, _ in _discover(dialect)]
+    if dialect == "opengauss":
+        from octop.infra.db.opengauss.migrate import BASELINE_VERSION
+
+        return max([BASELINE_VERSION, *versions])
     return max(versions) if versions else 0
 
 
@@ -2080,16 +2089,10 @@ def _grant_permission_keys_once(
     grant("users", "id", "role <> 'admin'")
     grant("user_role", "id", "user_role_id <> 'admin'")
     with db.transaction() as conn:
-        if db.dialect == "postgresql":
-            conn.execute(
-                "INSERT INTO settings(key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING",
-                (flag, "1"),
-            )
-        else:
-            conn.execute(
-                "INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)",
-                (flag, "1"),
-            )
+        conn.execute(
+            "INSERT INTO settings(key, value) VALUES (?, ?)" + sql_upsert(db.dialect, "key"),
+            (flag, "1"),
+        )
 
 
 def _grant_default_nav_permissions(db: DatabasePool) -> None:
@@ -2169,16 +2172,10 @@ def _expand_page_tab_permissions(db: DatabasePool) -> None:
     expand("users", "id", "role <> 'admin'")
     expand("user_role", "id", "user_role_id <> 'admin'")
     with db.transaction() as conn:
-        if db.dialect == "postgresql":
-            conn.execute(
-                "INSERT INTO settings(key, value) VALUES (?, ?) ON CONFLICT (key) DO NOTHING",
-                (_PAGE_TAB_EXPANSIONS_FLAG, "1"),
-            )
-        else:
-            conn.execute(
-                "INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)",
-                (_PAGE_TAB_EXPANSIONS_FLAG, "1"),
-            )
+        conn.execute(
+            "INSERT INTO settings(key, value) VALUES (?, ?)" + sql_upsert(db.dialect, "key"),
+            (_PAGE_TAB_EXPANSIONS_FLAG, "1"),
+        )
 
 
 def _ensure_automation_analysis_schema(db: DatabasePool) -> None:
@@ -2194,6 +2191,15 @@ def _ensure_automation_analysis_schema(db: DatabasePool) -> None:
 
 
 def run_migrations(db: DatabasePool) -> None:
+    if db.dialect == "opengauss":
+        from octop.infra.db.opengauss.migrate import run_opengauss_migrations
+
+        run_opengauss_migrations(db)
+        _grant_default_nav_permissions(db)
+        _grant_personalization_tab_permissions(db)
+        _grant_bridge_permission(db)
+        _expand_page_tab_permissions(db)
+        return
     if db.dialect == "sqlite":
         _repair_legacy_schema(db)
     for version, path in _discover(db.dialect):

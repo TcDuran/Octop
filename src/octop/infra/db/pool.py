@@ -121,6 +121,9 @@ class _PgConnectionProxy:
     def execute(self, sql: str, params: Any = None) -> Any:
         return self._conn.execute(qmark_to_pyformat(sql), params)
 
+    def executemany(self, sql: str, params: Any) -> Any:
+        return self._conn.cursor().executemany(qmark_to_pyformat(sql), params)
+
     def executescript(self, sql: str) -> None:
         # Used only if something still calls it; prefer migrate splitter.
         for stmt in _split_sql_statements(sql):
@@ -174,3 +177,9 @@ class PostgresPool:
 
     def close(self) -> None:
         self._pool.close()
+
+
+class OpenGaussPool(PostgresPool):
+    """Reuse psycopg transport while keeping SQL dialect selection explicit."""
+
+    dialect: str = "opengauss"

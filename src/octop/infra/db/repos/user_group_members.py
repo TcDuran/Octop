@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from octop.infra.db.pool import DatabasePool
-from octop.infra.db.repos._base import now_ts
+from octop.infra.db.repos._base import now_ts, sql_upsert
 
 
 class UserGroupMemberRepo:
@@ -47,7 +47,7 @@ class UserGroupMemberRepo:
         with self._db.transaction() as conn:
             conn.execute(
                 "INSERT INTO user_group_member(user_group_id, user_id, created_at) VALUES (?, ?, ?)"
-                " ON CONFLICT(user_group_id, user_id) DO NOTHING",
+                + sql_upsert(self._db.dialect, "user_group_id, user_id"),
                 (user_group_id, user_id, now_ts()),
             )
 

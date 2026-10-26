@@ -10,6 +10,7 @@ import time
 from dataclasses import dataclass
 
 from octop.infra.db.pool import DatabasePool
+from octop.infra.db.repos._base import sql_upsert
 
 
 @dataclass
@@ -73,13 +74,16 @@ class ProactiveCareConfigRepo:
                 "(agent_id, enabled, active_hours_start, active_hours_end, "
                 "min_interval_hours, max_interval_hours, updated_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?) "
-                "ON CONFLICT(agent_id) DO UPDATE SET "
-                "enabled = excluded.enabled, "
-                "active_hours_start = excluded.active_hours_start, "
-                "active_hours_end = excluded.active_hours_end, "
-                "min_interval_hours = excluded.min_interval_hours, "
-                "max_interval_hours = excluded.max_interval_hours, "
-                "updated_at = excluded.updated_at",
+                + sql_upsert(
+                    self._db.dialect,
+                    "agent_id",
+                    "enabled = excluded.enabled, "
+                    "active_hours_start = excluded.active_hours_start, "
+                    "active_hours_end = excluded.active_hours_end, "
+                    "min_interval_hours = excluded.min_interval_hours, "
+                    "max_interval_hours = excluded.max_interval_hours, "
+                    "updated_at = excluded.updated_at",
+                ),
                 (
                     config.agent_id,
                     int(config.enabled),

@@ -111,8 +111,39 @@ scripts/dev-local-link.sh
 fnos/native/app/site-packages/
 
 # Local agent planning docs (not for upstream)
-/docs/
-/tests/
+/docs/*
+!/docs/opengauss-compatibility-assessment.md
+!/docs/opengauss-development.md
+!/docs/opengauss-datavec-installation.md
+!/docs/validation/
+/docs/validation/*
+!/docs/validation/opengauss-20261023-vector.md
+!/docs/validation/postgres-vector-20261023.md
+!/docs/validation/postgres-memory-vector-20261024.md
+!/docs/validation/opengauss-recovery-20261026.md
+!/docs/validation/opengauss-product-vector-20261026.md
+!/docs/validation/opengauss-retained-sidecar-20261026.md
+!/docs/validation/opengauss-20261022/
+!/docs/validation/opengauss-20261022/repository-integration.log
+!/docs/validation/opengauss-20261023-live.md
+!/docs/validation/opengauss-20261023-scenarios.md
+!/docs/validation/opengauss-20261023-pg-parity.md
+/tests/*
+!/tests/integration/
+/tests/integration/*
+!/tests/integration/test_opengauss_control_plane.py
+!/tests/integration/test_opengauss_live.py
+!/tests/integration/test_opengauss_scenarios_live.py
+!/tests/integration/test_database_shared_live.py
+!/tests/integration/test_postgres_memory_vector_live.py
+!/tests/unit/
+/tests/unit/*
+!/tests/unit/db/
+/tests/unit/db/*
+!/tests/unit/db/test_opengauss.py
+!/tests/unit/api/
+/tests/unit/api/*
+!/tests/unit/api/test_memory_client_cache.py
 docs/superpowers/
 scripts/lh_image_install_octop_tencentos.sh
 .worktrees/
@@ -126,3 +157,7 @@ data-backup-*/
 .agents/
 # Local conda environment
 .conda-octop/
+
+# Current-upstream openGauss integration evidence and contracts
+!/docs/validation/opengauss-integration-20261026.md
+!/tests/integration/test_opengauss_upstream_schema.py

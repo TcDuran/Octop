@@ -1,0 +1,26 @@
+{
+  "checked_at": "2026-10-26T11:59:43.737814+08:00",
+  "source": "https://opengauss.obs.cn-south-1.myhuaweicloud.com/6.0.5/openEuler22.03/x86/openGauss-Server-6.0.5-openEuler22.03-x86_64.tar.bz2",
+  "official_checksum_source": "https://opengauss.obs.cn-south-1.myhuaweicloud.com/6.0.5/openEuler22.03/x86/openGauss-Server-6.0.5-openEuler22.03-x86_64.sha256",
+  "archive_sha256": "f81e592f9a503a71f57471506b10db585e7be674aa260030eb618c5167d3a6fd",
+  "archive_size": 78533901,
+  "checksum_matches": true,
+  "datavec_so_matches_existing_image": true,
+  "datavec_installation_sql_in_archive": false,
+  "files": {
+    "./lib/postgresql/datavec.so": {
+      "bytes": 248072,
+      "sha256": "3f0fcf8f484f28322ece2f5594bd3ab02b6ecdeb268800e965b8c522f452e499"
+    },
+    "./share/postgresql/extension/datavec.control": {
+      "bytes": 146,
+      "sha256": "2c61d0eb4052a55207867f89f0b9eafc9bf932c936e8df2ba069bd5802199551",
+      "content": "comment = 'vector data type and ivfflat and hnsw access methods'\ndefault_version = '0.7.2'\nmodule_pathname = '$libdir/datavec'\nrelocatable = true\n"
+    },
+    "./version.cfg": {
+      "bytes": 47,
+      "sha256": "6bf2211220158c177ebdad27a9f73c6f63c7e724eed0e34c75664ada52289e83",
+      "content": "openGauss-Server-6.0.5\n92.984\n5ba692ab\nrelease\n"
+    }
+  }
+}

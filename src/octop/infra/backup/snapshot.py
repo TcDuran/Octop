@@ -97,7 +97,7 @@ def capture_users_from_pool(pool: DatabasePool) -> list[tuple[object, ...]]:
     """Return all rows from the live *users* table as plain tuples."""
     with pool.connect() as conn:
         rows = conn.execute(f"SELECT {_USER_COLS_SQL} FROM users").fetchall()
-    return [tuple(r) for r in rows]
+    return [tuple(r[col] for col in _USER_COLUMNS) for r in rows]
 
 
 def upsert_users_into_pool(pool: DatabasePool, users: list[tuple[object, ...]]) -> None:
@@ -123,6 +123,11 @@ def upsert_users_into_pool(pool: DatabasePool, users: list[tuple[object, ...]]) 
                     f"INSERT INTO users({_USER_COLS_SQL}) VALUES ({_USER_PLACEHOLDERS})",
                     row,
                 )
+        if dialect in {"postgresql", "opengauss"}:
+            conn.execute(
+                "SELECT setval(pg_get_serial_sequence('users', 'id'), "
+                "COALESCE(MAX(id), 1), MAX(id) IS NOT NULL) FROM users"
+            )
 
 
 def prune_users_not_in(pool: DatabasePool, saved_ids: list[object]) -> None:
@@ -169,7 +174,7 @@ def infer_owner_user_id(users: list[tuple[object, ...]]) -> int | None:
 
 
 def _table_has_column(conn: object, table: str, column: str, *, dialect: str) -> bool:
-    if dialect == "postgresql":
+    if dialect in {"postgresql", "opengauss"}:
         row = conn.execute(  # type: ignore[attr-defined]
             "SELECT 1 FROM information_schema.columns "
             "WHERE table_schema = current_schema() AND table_name = ? AND column_name = ?",
@@ -181,7 +186,7 @@ def _table_has_column(conn: object, table: str, column: str, *, dialect: str) ->
 
 
 def _table_exists(conn: object, table: str, *, dialect: str) -> bool:
-    if dialect == "postgresql":
+    if dialect in {"postgresql", "opengauss"}:
         row = conn.execute(  # type: ignore[attr-defined]
             "SELECT 1 FROM information_schema.tables "
             "WHERE table_schema = current_schema() AND table_name = ?",

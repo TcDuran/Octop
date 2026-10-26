@@ -114,6 +114,7 @@ WORKDIR /app
 
 # 先安装锁定依赖，仅改源码时可复用此层缓存
 COPY pyproject.toml uv.lock README.md LICENSE ./
+COPY vendor/octop-memory/ vendor/octop-memory/
 RUN --mount=type=cache,target=/root/.cache/uv \
     if [ -n "$PIP_INDEX_URL" ]; then \
         export UV_INDEX_URL="$PIP_INDEX_URL"; \
@@ -172,3 +173,20 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD []
+
+# The openGauss compose selects this target; the default image stays unchanged.
+FROM 10.24.1.80:2443/library/opengauss:6.0.5 AS opengauss-clients
+
+FROM runtime AS opengauss-runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libreadline8t64 libcrypt1 libkeyutils1 libzstd1 \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=opengauss-clients /usr/local/opengauss/lib/ /opt/opengauss/lib/
+COPY --from=opengauss-clients /usr/local/opengauss/bin/gs_dump /usr/local/opengauss/bin/gs_restore /opt/opengauss/bin/
+COPY docker/opengauss/gs-client /usr/local/bin/gs-client
+RUN chmod +x /usr/local/bin/gs-client \
+    && ln -s gs-client /usr/local/bin/gs_dump \
+    && ln -s gs-client /usr/local/bin/gs_restore \
+    && gs_dump --version && gs_restore --version
+
+FROM runtime AS default

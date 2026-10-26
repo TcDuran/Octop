@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from octop.config import OctopConfig, database_env_configured
-from octop.infra.db.pool import DatabasePool, PostgresPool, SqlitePool
+from octop.infra.db.pool import DatabasePool, OpenGaussPool, PostgresPool, SqlitePool
 from octop.infra.utils.paths import PathLayout
 
 
@@ -24,7 +24,7 @@ def should_defer_control_plane_db(config: OctopConfig, paths: PathLayout) -> boo
     ``OCTOP_DATABASE_*`` / PostgreSQL configuration. Password verification and
     early wizard steps then run without a pool.
     """
-    if config.database.is_postgresql:
+    if not config.database.is_sqlite:
         return False
     if database_env_configured():
         return False
@@ -38,6 +38,8 @@ def open_database(config: OctopConfig, paths: PathLayout) -> DatabasePool:
     env overrides are set, falls back to ``paths.db`` (legacy layout).
     """
     db_cfg = config.database
+    if db_cfg.is_opengauss:
+        return OpenGaussPool(db_cfg.postgresql_conninfo())
     if db_cfg.is_postgresql:
         return PostgresPool(db_cfg.postgresql_conninfo())
 

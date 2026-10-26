@@ -1,0 +1,423 @@
+FF.FFFF                                                                  [100%]
+=================================== FAILURES ===================================
+______________________ test_pg_migrate_and_user_roundtrip ______________________
+tests/integration/test_postgresql_control_plane.py:59: in test_pg_migrate_and_user_roundtrip
+    _reset_public_schema(pool)
+tests/integration/test_postgresql_control_plane.py:33: in _reset_public_schema
+    conn.execute("GRANT ALL ON SCHEMA public TO CURRENT_USER")
+src/octop/infra/db/pool.py:122: in execute
+    return self._conn.execute(qmark_to_pyformat(sql), params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/psycopg/connection.py:300: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.SyntaxError: syntax error at or near "CURRENT_USER"
+E   LINE 1: GRANT ALL ON SCHEMA public TO CURRENT_USER
+E                                         ^
+_______________________ test_pg_control_plane_repo_smoke _______________________
+tests/integration/test_postgresql_control_plane.py:89: in test_pg_control_plane_repo_smoke
+    _reset_public_schema(pool)
+tests/integration/test_postgresql_control_plane.py:33: in _reset_public_schema
+    conn.execute("GRANT ALL ON SCHEMA public TO CURRENT_USER")
+src/octop/infra/db/pool.py:122: in execute
+    return self._conn.execute(qmark_to_pyformat(sql), params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/psycopg/connection.py:300: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.SyntaxError: syntax error at or near "CURRENT_USER"
+E   LINE 1: GRANT ALL ON SCHEMA public TO CURRENT_USER
+E                                         ^
+___________________________ test_pg_backup_roundtrip ___________________________
+tests/integration/test_postgresql_control_plane.py:197: in test_pg_backup_roundtrip
+    _reset_public_schema(pool)
+tests/integration/test_postgresql_control_plane.py:33: in _reset_public_schema
+    conn.execute("GRANT ALL ON SCHEMA public TO CURRENT_USER")
+src/octop/infra/db/pool.py:122: in execute
+    return self._conn.execute(qmark_to_pyformat(sql), params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/psycopg/connection.py:300: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.SyntaxError: syntax error at or near "CURRENT_USER"
+E   LINE 1: GRANT ALL ON SCHEMA public TO CURRENT_USER
+E                                         ^
+_____________________ test_setup_database_postgresql_bind ______________________
+tests/integration/test_postgresql_control_plane.py:247: in test_setup_database_postgresql_bind
+    _reset_public_schema(pool)
+tests/integration/test_postgresql_control_plane.py:33: in _reset_public_schema
+    conn.execute("GRANT ALL ON SCHEMA public TO CURRENT_USER")
+src/octop/infra/db/pool.py:122: in execute
+    return self._conn.execute(qmark_to_pyformat(sql), params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/psycopg/connection.py:300: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.SyntaxError: syntax error at or near "CURRENT_USER"
+E   LINE 1: GRANT ALL ON SCHEMA public TO CURRENT_USER
+E                                         ^
+_____________ test_pg_knowledge_base_max_documents_schema_and_crud _____________
+tests/integration/test_postgresql_control_plane.py:297: in test_pg_knowledge_base_max_documents_schema_and_crud
+    _reset_public_schema(pool)
+tests/integration/test_postgresql_control_plane.py:33: in _reset_public_schema
+    conn.execute("GRANT ALL ON SCHEMA public TO CURRENT_USER")
+src/octop/infra/db/pool.py:122: in execute
+    return self._conn.execute(qmark_to_pyformat(sql), params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/psycopg/connection.py:300: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.SyntaxError: syntax error at or near "CURRENT_USER"
+E   LINE 1: GRANT ALL ON SCHEMA public TO CURRENT_USER
+E                                         ^
+______________ test_postgres_checkpoint_history_uses_graph_reader ______________
+tests/integration/test_postgresql_checkpoint_history.py:29: in test_postgres_checkpoint_history_uses_graph_reader
+    memory = Memory(
+.venv/lib/python3.12/site-packages/octop_memory/core.py:101: in __init__
+    self._backend = _resolve_memory_backend(backend, namespace, backend_config or {})
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/octop_memory/core.py:1837: in _resolve_memory_backend
+    return PostgresMemoryBackend(namespace=namespace, **config)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/octop_memory/storage/backends/postgres.py:122: in __init__
+    self._init_schema()
+.venv/lib/python3.12/site-packages/octop_memory/storage/backends/postgres.py:186: in _init_schema
+    cur.execute(f"SET LOCAL lock_timeout = '{_DDL_LOCK_TIMEOUT}'")
+.venv/lib/python3.12/site-packages/psycopg/cursor.py:117: in execute
+    raise ex.with_traceback(None)
+E   psycopg.errors.UndefinedObject: unrecognized configuration parameter "lock_timeout"
+=============================== warnings summary ===============================
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-d1eb80b2-331a-4891-a2c3-ba08e1745817/popen-gw3/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-d1eb80b2-331a-4891-a2c3-ba08e1745817/popen-gw3
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw3'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-d1eb80b2-331a-4891-a2c3-ba08e1745817
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-d1eb80b2-331a-4891-a2c3-ba08e1745817'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-011155b9-06df-4efe-88de-dac4b99adff8/popen-gw5/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-011155b9-06df-4efe-88de-dac4b99adff8/popen-gw5
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw5'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-011155b9-06df-4efe-88de-dac4b99adff8
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-011155b9-06df-4efe-88de-dac4b99adff8'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-62d89ff8-9626-4ceb-bbb0-6e3bc3dbf9aa/popen-gw5/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-62d89ff8-9626-4ceb-bbb0-6e3bc3dbf9aa/popen-gw5
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw5'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-62d89ff8-9626-4ceb-bbb0-6e3bc3dbf9aa
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-62d89ff8-9626-4ceb-bbb0-6e3bc3dbf9aa'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-fb6fd41c-d487-40a6-bdd9-65069836d453/popen-gw6/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-fb6fd41c-d487-40a6-bdd9-65069836d453/popen-gw6
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw6'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-fb6fd41c-d487-40a6-bdd9-65069836d453
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-fb6fd41c-d487-40a6-bdd9-65069836d453'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-916358ee-00db-4543-bb8b-07653418e40e/popen-gw1/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-916358ee-00db-4543-bb8b-07653418e40e/popen-gw1
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw1'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-916358ee-00db-4543-bb8b-07653418e40e
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-916358ee-00db-4543-bb8b-07653418e40e'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-a0d6d9a4-3c72-4945-903d-38f8a522933b/popen-gw4/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-a0d6d9a4-3c72-4945-903d-38f8a522933b/popen-gw4
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw4'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-a0d6d9a4-3c72-4945-903d-38f8a522933b
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-a0d6d9a4-3c72-4945-903d-38f8a522933b'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-0a805e7a-2320-4ba7-84e6-17223f32f2f1/popen-gw3/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-0a805e7a-2320-4ba7-84e6-17223f32f2f1/popen-gw3
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw3'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-0a805e7a-2320-4ba7-84e6-17223f32f2f1
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-0a805e7a-2320-4ba7-84e6-17223f32f2f1'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-b8215b75-b483-40cc-b3f3-bdccc0010aec/popen-gw5/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-b8215b75-b483-40cc-b3f3-bdccc0010aec/popen-gw5
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw5'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-b8215b75-b483-40cc-b3f3-bdccc0010aec
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-b8215b75-b483-40cc-b3f3-bdccc0010aec'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-1962be04-68cc-4d5e-af1a-d1b25118910e/popen-gw6/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-1962be04-68cc-4d5e-af1a-d1b25118910e/popen-gw6
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw6'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-1962be04-68cc-4d5e-af1a-d1b25118910e
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-1962be04-68cc-4d5e-af1a-d1b25118910e'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-d68bc789-bab3-42f5-bd1e-0801860bbf0c/popen-gw2/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-d68bc789-bab3-42f5-bd1e-0801860bbf0c/popen-gw2
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw2'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-d68bc789-bab3-42f5-bd1e-0801860bbf0c
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-d68bc789-bab3-42f5-bd1e-0801860bbf0c'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-b9f42916-ee5b-4b37-8315-959f77f41bdc/popen-gw5/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-b9f42916-ee5b-4b37-8315-959f77f41bdc/popen-gw5
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw5'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-b9f42916-ee5b-4b37-8315-959f77f41bdc
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-b9f42916-ee5b-4b37-8315-959f77f41bdc'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-359c6a8e-1e52-4e61-89ae-c905c8d4be59/popen-gw3/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-359c6a8e-1e52-4e61-89ae-c905c8d4be59/popen-gw3
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw3'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-359c6a8e-1e52-4e61-89ae-c905c8d4be59
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-359c6a8e-1e52-4e61-89ae-c905c8d4be59'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-39993ca2-787e-48b1-9032-ba9d0d468e0e/popen-gw3/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-39993ca2-787e-48b1-9032-ba9d0d468e0e/popen-gw3
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw3'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-39993ca2-787e-48b1-9032-ba9d0d468e0e
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-39993ca2-787e-48b1-9032-ba9d0d468e0e'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-6ccf63af-09ce-4d1f-ab7d-04b8f7394193/popen-gw5/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-6ccf63af-09ce-4d1f-ab7d-04b8f7394193/popen-gw5
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw5'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-6ccf63af-09ce-4d1f-ab7d-04b8f7394193
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-6ccf63af-09ce-4d1f-ab7d-04b8f7394193'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-ea3137c5-9e1e-4511-932a-509adb93a452/popen-gw2/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-ea3137c5-9e1e-4511-932a-509adb93a452/popen-gw2
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw2'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-ea3137c5-9e1e-4511-932a-509adb93a452
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-ea3137c5-9e1e-4511-932a-509adb93a452'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-64cdae48-352b-4a2e-bfe7-6fcedae1e9da/popen-gw7/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-64cdae48-352b-4a2e-bfe7-6fcedae1e9da/popen-gw7
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw7'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-64cdae48-352b-4a2e-bfe7-6fcedae1e9da
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-64cdae48-352b-4a2e-bfe7-6fcedae1e9da'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-684a6662-72ab-4e6a-963f-88c645053bda/popen-gw5/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-684a6662-72ab-4e6a-963f-88c645053bda/popen-gw5
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw5'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-684a6662-72ab-4e6a-963f-88c645053bda
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-684a6662-72ab-4e6a-963f-88c645053bda'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-1c13a15c-d472-4968-8c7e-1f03f5c07f08/popen-gw3/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-1c13a15c-d472-4968-8c7e-1f03f5c07f08/popen-gw3
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw3'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-1c13a15c-d472-4968-8c7e-1f03f5c07f08
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-1c13a15c-d472-4968-8c7e-1f03f5c07f08'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-3eae96bb-fa9b-47e2-b33b-11bcace7787d/popen-gw2/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-3eae96bb-fa9b-47e2-b33b-11bcace7787d/popen-gw2
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw2'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-3eae96bb-fa9b-47e2-b33b-11bcace7787d
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-3eae96bb-fa9b-47e2-b33b-11bcace7787d'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-374db188-7248-4e68-b158-00049b194d71/popen-gw6/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-374db188-7248-4e68-b158-00049b194d71/popen-gw6
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw6'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-374db188-7248-4e68-b158-00049b194d71
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-374db188-7248-4e68-b158-00049b194d71'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-42e14282-4c36-4b30-a5de-309b387eec8e/popen-gw1/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-42e14282-4c36-4b30-a5de-309b387eec8e/popen-gw1
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw1'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-42e14282-4c36-4b30-a5de-309b387eec8e
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-42e14282-4c36-4b30-a5de-309b387eec8e'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-7c07c135-8e6b-486c-a8a2-d8b4627f258f/popen-gw6/test_ensure_profile_writable_r0
+  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-7c07c135-8e6b-486c-a8a2-d8b4627f258f/popen-gw6
+  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw6'
+    warnings.warn(
+
+.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95
+  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-7c07c135-8e6b-486c-a8a2-d8b4627f258f
+  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-7c07c135-8e6b-486c-a8a2-d8b4627f258f'
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/integration/test_postgresql_control_plane.py::test_pg_migrate_and_user_roundtrip
+FAILED tests/integration/test_postgresql_control_plane.py::test_pg_control_plane_repo_smoke
+FAILED tests/integration/test_postgresql_control_plane.py::test_pg_backup_roundtrip
+FAILED tests/integration/test_postgresql_control_plane.py::test_setup_database_postgresql_bind
+FAILED tests/integration/test_postgresql_control_plane.py::test_pg_knowledge_base_max_documents_schema_and_crud
+FAILED tests/integration/test_postgresql_checkpoint_history.py::test_postgres_checkpoint_history_uses_graph_reader
+6 failed, 1 passed, 66 warnings in 14.99s

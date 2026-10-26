@@ -7,6 +7,7 @@ Checkpoints, raw evidence, active memories and decision journals are untouched.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import time
@@ -77,7 +78,11 @@ def inspect_postgres_storage(backend: Any, *, blocked_reason: str | None = None)
     with _connect(backend) as conn, conn.cursor() as cur:
         cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
         cur.execute("SET LOCAL statement_timeout = '15s'")
-        cur.execute("SET LOCAL lock_timeout = '1s'")
+        cur.execute(
+            "SET LOCAL lockwait_timeout = 1000"
+            if type(backend).__name__ == "OpenGaussMemoryBackend"
+            else "SET LOCAL lock_timeout = '1s'"
+        )
         for table in TABLES:
             cur.execute(
                 sql.SQL(
@@ -101,7 +106,9 @@ def inspect_postgres_storage(backend: Any, *, blocked_reason: str | None = None)
             )
             eligible[table] = int(cur.fetchone()["rows"])
     return {
-        "backend": "postgres",
+        "backend": "opengauss"
+        if type(backend).__name__ == "OpenGaussMemoryBackend"
+        else "postgres",
         "scope": "agent",
         "checked_at": time.time(),
         "maintenance_supported": blocked_reason is None,
@@ -140,18 +147,31 @@ def maintain_postgres_storage(
     progress({"phase": "inspecting"})
     with _connect(backend) as conn, conn.cursor() as cur:
         cur.execute("SET LOCAL statement_timeout = '15s'")
-        cur.execute("SET LOCAL lock_timeout = '1s'")
         cur.execute(
-            "SELECT pg_try_advisory_xact_lock(hashtextextended(%s, 0)) AS acquired",
-            (f"octop:memory-maintenance:{namespace}",),
+            "SET LOCAL lockwait_timeout = 1000"
+            if type(backend).__name__ == "OpenGaussMemoryBackend"
+            else "SET LOCAL lock_timeout = '1s'"
         )
+        if type(backend).__name__ == "OpenGaussMemoryBackend":
+            key = int.from_bytes(
+                hashlib.sha256(f"octop:memory-maintenance:{namespace}".encode()).digest()[:8],
+                "big",
+                signed=True,
+            )
+            cur.execute("SELECT pg_try_advisory_xact_lock(%s) AS acquired", (key,))
+        else:
+            cur.execute(
+                "SELECT pg_try_advisory_xact_lock(hashtextextended(%s, 0)) AS acquired",
+                (f"octop:memory-maintenance:{namespace}",),
+            )
+
         if not cur.fetchone()["acquired"]:
             raise ValueError(tr("memory_storage.namespace_busy", locale))
         for table, (predicate, params) in _predicates(namespace, now).items():
             # Generated FTS columns are derived, and must not be restored as data.
             cur.execute(
                 sql.SQL(
-                    "SELECT t.id, (to_jsonb(t) - 'fts_tsv') AS data FROM octop_memory.{} t WHERE "
+                    "SELECT t.id, (row_to_json(t)::jsonb - 'fts_tsv') AS data FROM octop_memory.{} t WHERE "
                     + predicate
                     + " ORDER BY t.id LIMIT %s FOR UPDATE OF t SKIP LOCKED"
                 ).format(sql.Identifier(table)),
@@ -207,7 +227,9 @@ def maintain_postgres_storage(
         # The connection context commits both tables together. Any error rolls
         # everything back; the flushed backup is retained for inspection.
     return {
-        "backend": "postgres",
+        "backend": "opengauss"
+        if type(backend).__name__ == "OpenGaussMemoryBackend"
+        else "postgres",
         "operation": "namespace_cleanup",
         "namespace": namespace,
         "candidates_deleted": deleted["candidates"],
