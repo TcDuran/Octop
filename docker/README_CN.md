@@ -14,6 +14,7 @@
 | `docker-compose.yml` | 本地开发 / 自托管一键启动 |
 | `docker-compose.cn.yml` | 同一套服务，拉取 `ghcr.nju.edu.cn/tencentcloud/octop:latest`（不本地构建） |
 | `docker-compose.postgres.yml` | 仅 PostgreSQL（+ pgvector）开发/测试库；扩展在 `postgres/init-vector.sql` |
+| `docker-compose-odc-postgres.yml` | ODC 生产 Compose：复用外部 PostgreSQL 网络，使用独立 `octop` 库/账号，不启动或访问 `plat` 库 |
 | `postgres/init-vector.sql` | 实例级 `CREATE EXTENSION vector`（initdb.d；**不**进 Octop 迁移） |
 | `docker-entrypoint.sh` | 容器入口：首次初始化数据库并启动服务 |
 
@@ -94,6 +95,20 @@ INSTALL_LOCAL_EMBEDDING=false bash docker/docker_build.sh octop:tag
 - Compose 默认将宿主机 `~/.octop` 挂载到容器 `/data/.octop`
 - `docker run` 示例使用命名卷 `octop-data`
 - 首次启动：`OCTOP_DEFAULT_PASSWORD` 合格则执行 `octop init` 并写入 `credential.txt`；未设置或不合格则不建管理员，向导口令写入 `/data/.octop/octop-login.txt`，打开页面完成设置（容器不会因弱密码退出）。
+
+### ODC PostgreSQL 部署
+
+生产 ODC 使用 [`docker-compose-odc-postgres.yml`](docker-compose-odc-postgres.yml)。
+镜像应在构建阶段使用 `INSTALL_LOCAL_EMBEDDING=false`，目标机器仍可配置第三方远程
+embedding；知识库原文、分块和向量索引继续保存在 `/data/.octop/knowledge` 的 SQLite
+sidecar。部署前由 DBA 创建独立的 PostgreSQL `octop` 数据库和运行账号，`.env` 只保存
+该账号的连接信息，不得填写共享 `plat` 数据库或超级用户。
+
+更新流程：先备份数据库和 `/apps/octop/data`，记录当前镜像 tag/digest；将新镜像 tag
+写入 `/apps/octop/.env` 后执行 `docker compose -f docker-compose-odc-postgres.yml
+config`、`up -d`，启动时由 Octop 执行编号迁移；随后检查 `/api/health`、登录、只读
+连接器和数据库连接。回滚时恢复上一 immutable 镜像并按备份恢复数据库/数据目录，不能
+只回滚镜像而跳过已执行的数据库迁移。
 
 ### 健康检查
 

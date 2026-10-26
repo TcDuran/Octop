@@ -2,7 +2,7 @@
 
 本目录统一记录本仓库相对官方 Octop 的改造、设计及升级检查点。代码继续遵循仓库原有模块边界，不要求搬到同一个运行时代码目录。
 
-核对基线：个人 `develop` 提交 `a75b69fb`，本轮同步官方 `v1.0.3b1`（`890111b7`）；维护状态更新至 2026-10-26。官方权限 Tab 拆分、权限分组折叠及管理端建用户时选择默认专家均采用官方实现；PLAT 内嵌登录、极简默认布局、OIDC 首次登录助手和自动化分析保留。本轮同步不创建生产版本标签，历史实机记录保留原验收日期。
+核对基线：当前 `develop` / `main` 提交 `d0a3ffea`，本轮同步官方 `v1.0.3b1`（`890111b7`）；维护状态更新至 2026-10-26。官方权限 Tab 拆分、权限分组折叠及管理端建用户时选择默认专家均采用官方实现；PLAT 内嵌登录、极简默认布局、OIDC 首次登录助手和自动化分析保留。本轮同步不创建生产版本标签，历史实机记录保留原验收日期。
 
 ## 1. 改造目录
 
@@ -19,6 +19,7 @@
 | Hub Operation 认证 Header 映射 | 已本地安装开发制品并完成 Octop 实机验证 | [使用与验收记录](hub-operation-auth-headers.md)；moudule-plat Hub 后端、AJ-PT local 配置 | 仅 Operation 显式映射可覆盖默认上游凭证；本地 common/Hub/plat-starter 开发版一致，未上传 Nexus；旧 42 工具保持，JWT 刷新与幂等限制见记录 |
 | 审批工作流 REST → Hub MCP 挂载 | 19 项已发布，8 类审批动作与公文四级回调已实测；已办查询有上游故障 | [配置与实机验收记录](hub-workflow-rest-mcp.md)；现有 Hub 服务/目录配置 | 当前61工具，原42名称保持；显式 JWT Header、双层幂等、测试资源回收及 completed 空指针限制见记录；本轮无应用源码改动 |
 | REST → MCP 五账号自然语言审批 | 三类闭环通过：合同 6 级、用印 5 级、用车退回补正及 2 级审批，业务均 approved | [2026-10-23 实测记录](approval-rest-chat-e2e-20261023.md)；独立测试目录及五账号真实 Chat | 仅系统模拟审批；六项临时 Operation、27 工具；保留失败样本，已办故障未修，无应用源码改动 |
+| REST → MCP 四账号连接器回归 | 2026-10-26 基于现有 `rest-approval-e2e-1023` 连接器完成真实 MCP 初始化、工具枚举及只读调用 | 本节“4.1” | 只读验证；申请账号各 27 个工具，审批账号按业务权限 23 个工具；未执行业务写操作 |
 | 本地 OIDC 联调容器 | 已在当前基线集成 | `docker/docker-compose.oidc-local.yml` | 属于本地联调设施；避免误当生产配置 |
 | 日志保留排序回归 | 已在合并历史中处理 | 合并提交 `fce4f125`、`tests/unit/test_logging.py` | 以最新源码及上游行为为准，不恢复已不需要的旧补丁 |
 | 自动化扫描与独立分析会话 | 已合并当前基线并部署 8088，已完成多轮实测；保留已知边界 | [方案文档](automation-analysis-dispatch.md) | 一次性 Cron 绑定事项会话；一张关联表、两个工具；总览下次扫描刷新；共享 Cron 执行入口、MCP 包装和数据库迁移需回归，分析指令长度问题见方案末节 |
@@ -66,12 +67,32 @@
 
 新增改造按功能拆成可审阅提交，不为了整理目录夹带历史代码重构。
 
+### 4.1 2026-10-26 REST → MCP 四账号真实连接器回归
+
+本轮直接复用 Octop 已保存的 `rest-approval-e2e-1023` 自定义 MCP 连接器，通过
+Octop 的 `ConnectorService`、可信 PLAT URL 规则和每个用户自己的 OIDC 业务凭证组装
+MCP 客户端；没有直接请求 AJ-PT/BPM 原始 REST，也没有把密码、JWT 或业务凭证写入
+日志、文档或仓库。四个账号均重新完成 PLAT OIDC 登录以刷新凭证。
+
+| 账号 | MCP `tools/list` | 真实只读 `tools/call` | 结果 |
+| --- | ---: | --- | --- |
+| `octop_yj` | 27 | `application_my_page(type=seal,current=1,size=5)` | 成功，返回本人用印申请（含 `YJ-2026-0054`） |
+| `octop_ht` | 27 | `application_my_page(type=contract,current=1,size=5)` | 成功，返回本人合同申请（含 `HT-2026-0013`） |
+| `octop_yc` | 27 | `application_my_page(type=car,current=1,size=5)` | 成功，返回本人用车申请（含 `YC-2026-0024`） |
+| `octop_approval` | 23 | `workflow_user_token` → `workflow_tasks(scope=pending,page=1,pageSize=5)` | 成功，返回当前账号真实待办空列表；未暴露申请查询工具 |
+
+每个账号均完成 `initialize`、`tools/list` 和一次真实业务只读调用。审批账号的工具集合
+少于申请账号是业务权限隔离的预期结果；直接调用未授权的申请工具不作为验证入口。该轮
+没有创建、修改、退回、审批、领取或删除单据，业务库仅产生正常登录/访问审计。此前
+自然语言审批写操作和终态回归仍以 [2026-10-23 实测记录](approval-rest-chat-e2e-20261023.md)
+为准，本轮不重复执行写操作。
+
 
 ## 4. 2026-10-26 同步验证
 
 本轮在隔离工作树合并官方 `v1.0.3b1`，保留主工作区原有 7 项 Docker 未提交改动，不将其夹带到同步提交。
 
-- `make all`：5252 passed、35 skipped；Ruff 与 mypy 通过。
+- `make all`：5265 passed、94 skipped、33 warnings；Ruff 与 mypy 通过。
 - `npm run build`：TypeScript 检查、Vite 生产构建和 PWA 生成通过；另以 `VITE_BASE_PATH=/octop/` 构建通过。
 - 前端专项：登录与 Token 隔离、官方权限选择器、publicUrl、极简布局及侧栏，共 34 项通过。本机 Node 26 的 Vitest 使用 `NODE_OPTIONS=--no-experimental-webstorage`，避免 Node 自带 localStorage 遮蔽 jsdom。
 - 使用旧提交的迁移脚本重建本地 022 数据库，升级到 025，确认用户数据保留、官方用户组与共享列补齐、重复迁移幂等；数据库专项 21 项通过。
