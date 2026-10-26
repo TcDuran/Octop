@@ -6,7 +6,6 @@
  * unmount of one surface from closing shells the other still needs.
  * Output is multi-cast to every registered UI listener.
  */
-import { getWsUrl } from "../../../api/config";
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { getAuthToken } from "../../../api/request";
 
@@ -104,7 +103,10 @@ function generateId(): string {
 
 function buildWsUrl(agentId: string, sessionId: string): string {
   const token = getAuthToken();
-  const base = getWsUrl(`/agents/${encodeURIComponent(agentId)}/terminal/ws`);
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const base = `${protocol}://${
+    window.location.host
+  }/api/agents/${encodeURIComponent(agentId)}/terminal/ws`;
   const params = new URLSearchParams();
   if (token) params.set("token", token);
   // Same id re-attaches to the backend shell.

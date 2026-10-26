@@ -1,3 +1,5 @@
+import { publicUrl } from "./utils/publicUrl";
+
 /**
  * Service Worker registration and lifecycle management.
  *
@@ -12,9 +14,6 @@
  *     so Vite HMR and an old worker do not fight over navigations.
  */
 
-import { withBasePath } from "./utils/deploymentPath";
-import { clearDeploymentCaches } from "./utils/deploymentCache";
-
 let pendingRegistration: ServiceWorkerRegistration | null = null;
 let applyingUpdate = false;
 
@@ -23,7 +22,12 @@ function notifyUpdateReady(): void {
 }
 
 async function unregisterAllServiceWorkers(): Promise<void> {
-  await clearDeploymentCaches();
+  const regs = await navigator.serviceWorker.getRegistrations();
+  await Promise.all(regs.map((r) => r.unregister()));
+  if ("caches" in window) {
+    const keys = await caches.keys();
+    await Promise.all(keys.map((k) => caches.delete(k)));
+  }
 }
 
 /**
@@ -62,10 +66,11 @@ export async function applyUpdate(): Promise<void> {
 
 /** Production registration. Exported for unit tests (vitest always sets DEV). */
 export async function registerProductionSW(): Promise<void> {
+  const scope = import.meta.env.BASE_URL || "/";
   const registration = await navigator.serviceWorker.register(
-    withBasePath("/sw.js"),
+    publicUrl("sw.js"),
     {
-      scope: withBasePath("/"),
+      scope,
       updateViaCache: "none",
     },
   );

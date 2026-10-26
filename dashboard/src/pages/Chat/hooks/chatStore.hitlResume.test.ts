@@ -14,7 +14,6 @@ import {
 
 vi.mock("../../../api/config", () => ({
   getApiUrl: (path: string) => `/api${path}`,
-  getWsUrl: (path: string) => `ws://${window.location.host}/api${path}`,
 }));
 
 const SESSION = "test-hitl-resume";

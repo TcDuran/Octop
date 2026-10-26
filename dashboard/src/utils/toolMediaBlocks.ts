@@ -2,8 +2,6 @@
  * Resolve tool-result media URLs for dashboard display.
  */
 
-import { publicApiUrl, withoutBasePath } from "./deploymentPath";
-
 import {
   isHostAbsolutePath,
   stripVirtualWorkspaceRoot,
@@ -28,15 +26,18 @@ export function isDataUrl(url: string): boolean {
 
 /** URLs that require Authorization and must be fetched via requestBlob. */
 export function needsAuthBlobFetch(url: string): boolean {
-  const rawPath = url.startsWith("http")
+  const path = url.startsWith("http")
     ? new URL(url).pathname
     : url.split("?")[0];
-  const path = withoutBasePath(rawPath);
   if (path === "/api/workspace/media") return true;
   // Bridge agent ids contain ``:`` (or ``%3A``); ``[^/]+`` still matches.
   if (/^\/api\/agents\/[^/]+\/avatar$/.test(path)) return true;
   if (/^\/api\/users\/\d+\/avatar$/.test(path)) return true;
   if (/^\/api\/users\/roles\/[^/]+\/avatar$/.test(path)) return true;
+  if (/^\/api\/user-groups\/[^/]+\/avatar$/.test(path)) return true;
+  if (/^\/api\/skill-packages\/[^/]+\/avatar$/.test(path)) return true;
+  if (/^\/api\/knowledge-bases\/[^/]+\/avatar$/.test(path)) return true;
+  if (/^\/api\/bridge\/connections\/[^/]+\/avatar$/.test(path)) return true;
   if (/^\/api\/experts\/published\/[^/]+\/avatar$/.test(path)) return true;
   if (/^\/api\/agents\/[^/]+\/media\/preview$/.test(path)) return true;
   if (/^\/api\/agents\/[^/]+\/workspace\/download$/.test(path)) return true;
@@ -285,7 +286,7 @@ export function canonicalizeMediaApiUrl(
     const parsed = url.startsWith("http")
       ? new URL(url)
       : new URL(url, "http://octop.local");
-    const pathMatch = withoutBasePath(parsed.pathname).match(
+    const pathMatch = parsed.pathname.match(
       /^\/api\/agents\/([^/]+)\/(media\/preview|workspace\/download)$/,
     );
     if (!pathMatch) return url;
@@ -760,9 +761,10 @@ function withCanonicalUrls(
   items: ToolMediaItem[],
   chatAgentId?: string | null,
 ): ToolMediaItem[] {
+  if (!chatAgentId) return items;
   return items.map((item) => ({
     ...item,
-    url: publicApiUrl(canonicalizeMediaApiUrl(item.url, chatAgentId)),
+    url: canonicalizeMediaApiUrl(item.url, chatAgentId),
   }));
 }
 
@@ -871,9 +873,7 @@ export function collectToolMediaFromToolData(
     files: dedupeByUrl(
       files.map((file) => ({
         ...file,
-        url: publicApiUrl(
-          agentId ? canonicalizeMediaApiUrl(file.url, agentId) : file.url,
-        ),
+        url: agentId ? canonicalizeMediaApiUrl(file.url, agentId) : file.url,
       })),
     ),
   };

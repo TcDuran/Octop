@@ -2,7 +2,7 @@
 
 本目录统一记录本仓库相对官方 Octop 的改造、设计及升级检查点。代码继续遵循仓库原有模块边界，不要求搬到同一个运行时代码目录。
 
-核对基线：本地 `main`，提交 `d8207b94`，已合并官方 1.0.2；维护状态更新至 2026-10-25（2026-10-23 的实机验收结果保留原日期）。2026-10-25 已刷新 origin 引用并核对 main 基线；本文依据源码和已有验证记录整理，不是对未来官方版本的兼容承诺。本轮通过 feature/plat-minimal-oidc-assistant → develop 的 PR 集成，不触发版本发版。
+核对基线：个人 `develop` 提交 `a75b69fb`，本轮同步官方 `v1.0.3b1`（`890111b7`）；维护状态更新至 2026-10-26。官方权限 Tab 拆分、权限分组折叠及管理端建用户时选择默认专家均采用官方实现；PLAT 内嵌登录、极简默认布局、OIDC 首次登录助手和自动化分析保留。本轮同步不创建生产版本标签，历史实机记录保留原验收日期。
 
 ## 1. 改造目录
 
@@ -12,9 +12,9 @@
 | PLAT iframe 登录、页签 Token 隔离 | 已在当前基线集成 | `dashboard/src/pages/Login/PlatEmbed.tsx`、`OidcComplete.tsx`、`api/request.ts`、`App.tsx`、后端 auth 路由 | 独立网页与嵌入模式登录、来源校验、切公司、同标签页导航 |
 | 极简布局、PLAT 嵌入与 OIDC 默认助手 | 已部署原 8088，完成首次/重复 OIDC、PLAT 真实内嵌与聊天验收 | [实现与验收记录](plat-minimal-oidc-assistant.md)；布局 Context、Sidebar、SSO service/server、general-assistant 模板 | 默认 minimal、保留已存偏好；嵌入标记与 iframe 双重判断；无个人专家时从原 general-assistant 模板幂等创建 PLAT·通用助手，仅改名，不新增表；make all 5152 passed，前端全量既有失败与时序波动见验收记录 |
 | 跨会话推送 | 已在当前基线集成 | `src/octop/infra/gateway/tools.py`、agent manager、工具目录及 i18n | `list_sessions` / `send_to_session` 的权限、历史留存和目标 session 语义；新成果工具应复用可复用部分，不改变旧工具契约 |
-| MCP 参数嵌套类型修复 | 已在当前基线集成 | `docker/patches/patch_harness_mcp.py`、Dockerfile、MCP 探测与缓存相关代码 | 先判断官方 harness 是否已修复；检查补丁是否仍匹配依赖版本，避免重复打补丁 |
+| MCP 参数嵌套类型修复 | 已适配官方 octop-harness 1.0.5 | `docker/patches/patch_harness_mcp.py`、Dockerfile、MCP 探测与缓存相关代码 | 保留官方 enum、array、可选参数处理，仅补齐 LangChain 重建时丢失的嵌套 object properties；升级需检查补丁锚点及 tool_call_schema |
 | 白标品牌 | 已在当前基线集成 | `brand/`、`brand/patch-octop-brand.sh`、Dockerfile | 官方静态资源路径变化、构建产物、镜像构建顺序 |
-| 运行时部署子路径 | 已实现，完成隔离 Docker / 浏览器 / Nginx 实测 | [配置与验收记录](runtime-base-path.md)；`config.py`、`api/deployment.py`、dashboard `utils/deploymentPath.ts` | 同一构建支持根路径、`/octop`、嵌套前缀；升级核对 Router、API / WS、认证回调、静态资源、PWA 和容器探针；不改业务路由和数据库 |
+| 官方构建期部署子路径 | 已切换为官方 `v1.0.3b1` 实现 | `dashboard/vite.config.ts`、`dashboard/src/utils/publicUrl.ts`、`VITE_BASE_PATH` | 每个前端构建通过 `VITE_BASE_PATH=/octop/` 固定部署前缀；Nginx 转发到 Octop 时去掉该前缀；不再使用 `OCTOP_BASE_PATH` 或运行时 ASGI 前缀中间件 |
 | AJ-PT REST → Hub MCP 配置迁移 | 33 项能力 / 35 个 operation 已全量真机通过 | [迁移与验收记录](ajpt-rest-mcp-migration.md)；Hub 服务/目录配置、AJ-PT 官方 SQL | 42 项发布、原 12 工具名保持；当前调用人权限、数据库版本、真实审批与幂等，非 AJ-PT 源码补丁 |
 | Hub Operation 认证 Header 映射 | 已本地安装开发制品并完成 Octop 实机验证 | [使用与验收记录](hub-operation-auth-headers.md)；moudule-plat Hub 后端、AJ-PT local 配置 | 仅 Operation 显式映射可覆盖默认上游凭证；本地 common/Hub/plat-starter 开发版一致，未上传 Nexus；旧 42 工具保持，JWT 刷新与幂等限制见记录 |
 | 审批工作流 REST → Hub MCP 挂载 | 19 项已发布，8 类审批动作与公文四级回调已实测；已办查询有上游故障 | [配置与实机验收记录](hub-workflow-rest-mcp.md)；现有 Hub 服务/目录配置 | 当前61工具，原42名称保持；显式 JWT Header、双层幂等、测试资源回收及 completed 空指针限制见记录；本轮无应用源码改动 |
@@ -49,7 +49,7 @@
 - 会话关联、消息写入复用 gateway/history 服务，通过小范围接入适配，不从 domain 导入 HTTP router。
 - 通用聊天链接属于 dashboard Markdown 渲染，不能放入 PLAT 登录模块。
 - 品牌与容器补丁沿用既有目录。
-- 部署前缀集中在配置、ASGI 入口和前端路径工具；各业务 API 保留 `/api/...` 定义，不逐个增加 `/octop`，也不重写历史消息和附件地址。
+- 部署子路径遵循官方构建期方案：前端通过 `VITE_BASE_PATH` 生成资源路径，反向代理转发时去掉该前缀；业务 API 仍保持 `/api/...` 定义。
 
 - 极简嵌入只在现有布局和侧栏作小范围条件渲染；OIDC 默认助手初始化独立放在 infra/auth/sso/default_agent.py，复用官方模板构建和 AgentManager.create。
 
@@ -59,9 +59,24 @@
 
 1. 记录官方基线和本地改造提交；遵守仓库的分支与发布流程。
 2. 先检查官方是否已提供等价能力，再决定保留、适配或移除对应补丁。
-3. 重点审阅共用接入文件：agent manager、Cron delivery、历史写入入口、Markdown、认证请求及错误处理；部署子路径还需按 [同步检查表](runtime-base-path.md#4-同步官方代码时的检查表) 核查应用入口、构建和 PWA。
-4. 数据库迁移编号按实施时最新状态协调；不可只改编号而忽略已有数据库的应用水位。
+3. 重点审阅共用接入文件：agent manager、Cron delivery、历史写入入口、Markdown、认证请求及错误处理；部署子路径按官方 `VITE_BASE_PATH`、`publicUrl()`、PWA 和 Nginx 前缀规则回归。
+4. 官方迁移编号优先：本轮保留官方 022–024，将本地自动化分析迁移改为 `025_octop_automation_analysis.sql` / `.pg.sql`，本地描述统一加 `octop_` 标记；已有本地 022 数据库通过幂等补齐官方 022 列并继续升级到 025。后续仍需核对官方新编号，标记本身不能避免数字冲突；不可只改文件名而忽略已有数据库的应用水位。
 5. 执行各模块专项测试，再执行仓库交付检查；嵌入与独立网页均验证会话导航。
 6. 更新本索引和各方案的验证记录，明确哪些是源码核对、哪些是实际运行结果。
 
 新增改造按功能拆成可审阅提交，不为了整理目录夹带历史代码重构。
+
+
+## 4. 2026-10-26 同步验证
+
+本轮在隔离工作树合并官方 `v1.0.3b1`，保留主工作区原有 7 项 Docker 未提交改动，不将其夹带到同步提交。
+
+- `make all`：5252 passed、35 skipped；Ruff 与 mypy 通过。
+- `npm run build`：TypeScript 检查、Vite 生产构建和 PWA 生成通过；另以 `VITE_BASE_PATH=/octop/` 构建通过。
+- 前端专项：登录与 Token 隔离、官方权限选择器、publicUrl、极简布局及侧栏，共 34 项通过。本机 Node 26 的 Vitest 使用 `NODE_OPTIONS=--no-experimental-webstorage`，避免 Node 自带 localStorage 遮蔽 jsdom。
+- 使用旧提交的迁移脚本重建本地 022 数据库，升级到 025，确认用户数据保留、官方用户组与共享列补齐、重复迁移幂等；数据库专项 21 项通过。
+- 实际 octop-harness 1.0.5 的 `StructuredTool.tool_call_schema` 保留嵌套 `req.orgId`、enum 与可选 array；校验后数据仍可序列化为 JSON。
+- 隔离实例（18088）：浏览器完成滑块验证、密码登录、极简界面与用户管理验收；通过新建用户页面创建 `sync_member` 并自动生成 `PLAT·通用助手`。官方分组折叠和按 Tab 的权限项可见；`/api/docs` 返回可读 Scalar 文档，OpenAPI 包含用户组接口。
+- 真实 Nginx（18089）：转发时去掉 `/octop/` 前缀，浏览器从 `/octop/login` 登录后进入 `/octop/chat`，健康检查正常。
+
+以上使用独立测试数据库与临时账号，不修改现有 8088 容器数据，不代表本轮重新执行过 AJ-PT 审批全流程或 PLAT OIDC 真实登录；这些联调保留之前的验收记录。

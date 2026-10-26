@@ -11,7 +11,7 @@ import {
   useDesktopChrome,
 } from "./hooks/useDesktopChrome";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { getBasePath } from "./utils/deploymentPath";
+import { routerBasename } from "./utils/publicUrl";
 import { useTranslation } from "react-i18next";
 import MainLayout from "./layouts/MainLayout";
 import LoginPage from "./pages/Login";
@@ -165,7 +165,7 @@ function App() {
     // `useTransitions` off: with router transitions on, React keeps the old
     // page mounted while a lazy route chunk downloads and never renders the
     // Suspense fallback, so a nav click looks like it did nothing.
-    <BrowserRouter basename={getBasePath() || "/"} useTransitions={false}>
+    <BrowserRouter basename={routerBasename()} useTransitions={false}>
       <GlobalErrorBoundary>
         <GlobalStyle />
         <ThemeProvider>

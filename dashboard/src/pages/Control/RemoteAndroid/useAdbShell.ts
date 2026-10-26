@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getAuthToken } from "../../../api/request";
-import { getWsUrl } from "../../../api/config";
 
 export type AdbShellState = "idle" | "connecting" | "connected" | "error";
 
@@ -11,7 +10,10 @@ function buildWsUrl(serial: string, cols: number, rows: number): string {
   params.set("serial", serial);
   params.set("cols", String(cols));
   params.set("rows", String(rows));
-  return `${getWsUrl("/mobile/adb/shell/ws")}?${params.toString()}`;
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  return `${protocol}://${
+    window.location.host
+  }/api/mobile/adb/shell/ws?${params.toString()}`;
 }
 
 export function useAdbShell() {

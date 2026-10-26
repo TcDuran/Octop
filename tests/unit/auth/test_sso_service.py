@@ -50,16 +50,6 @@ def configure_provider(
     )
 
 
-@pytest.mark.parametrize("origin", [None, "https://dashboard.example"])
-def test_frontend_origin_preserves_runtime_deployment_prefix(
-    service: SsoService, origin: str | None
-) -> None:
-    configure_provider(service, dashboard_origin=origin)
-    assert service.login_error_frontend("https://api.example/apps/octop") == (
-        (origin or "https://api.example") + "/apps/octop"
-    )
-
-
 def add_login_state(
     service: SsoService,
     provider_id: int,

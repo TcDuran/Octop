@@ -52,10 +52,22 @@ function suppressViteDisconnectReload(): Plugin {
   };
 }
 
+function normalizeViteBase(raw: string | undefined): string {
+  const value = (raw || "/").trim() || "/";
+  if (value === "/") return "/";
+  const withLeading = value.startsWith("/") ? value : `/${value}`;
+  return withLeading.endsWith("/") ? withLeading : `${withLeading}/`;
+}
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   // Empty = same-origin; frontend and backend served together, no hardcoded host.
   const apiBaseUrl = env.BASE_URL ?? "";
+  // Subpath deploy (e.g. reverse-proxy ``/octop/``). Distinct from ``BASE_URL``
+  // (optional absolute API origin for local/dev splits).
+  const viteBase = normalizeViteBase(
+    process.env.VITE_BASE_PATH ?? env.VITE_BASE_PATH,
+  );
   // Allow overriding the backend port via VITE_API_PORT env variable (default: 8088)
   const apiPort = process.env.VITE_API_PORT ?? env.VITE_API_PORT ?? "8088";
 
@@ -88,8 +100,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
-    // The server injects a runtime <base>; one build works at every prefix.
-    base: "./",
+    base: viteBase,
     build: {
       outDir: path.resolve(__dirname, "../src/octop/dashboard"),
       emptyOutDir: true,
@@ -254,9 +265,7 @@ export default defineConfig(({ mode }) => {
             {
               // Read-only API calls (chat history, files, config).
               // NetworkFirst ensures fresh data when online; cache used offline.
-              urlPattern: ({ url, sameOrigin }) =>
-                sameOrigin &&
-                /\/api\/(chats|agent\/files|agent\/memory)/.test(url.pathname),
+              urlPattern: /^\/api\/(chats|agent\/files|agent\/memory)/,
               handler: "NetworkFirst",
               options: {
                 cacheName: "api-readonly",

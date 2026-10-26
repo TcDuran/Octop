@@ -10,7 +10,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from functools import partial
 from typing import Any
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlencode
 
 import httpx
 import jwt
@@ -459,15 +459,14 @@ class SsoService:
         return provider
 
     def _frontend_base(self, public_base: str, *, provider: SsoProviderRow | None = None) -> str:
-        prefix = urlparse(public_base).path.rstrip("/")
         if provider is not None and provider.dashboard_origin:
-            return provider.dashboard_origin.rstrip("/") + prefix
+            return provider.dashboard_origin.rstrip("/")
         oidc = self._services.sso_repo.get_by_kind("oidc")
         if oidc is not None and oidc.dashboard_origin:
-            return oidc.dashboard_origin.rstrip("/") + prefix
+            return oidc.dashboard_origin.rstrip("/")
         for row in self._services.sso_repo.list():
             if row.enabled and row.dashboard_origin:
-                return row.dashboard_origin.rstrip("/") + prefix
+                return row.dashboard_origin.rstrip("/")
         return public_base.rstrip("/")
 
     def login_error_frontend(self, public_base: str) -> str:
