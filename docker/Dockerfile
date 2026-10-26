@@ -90,6 +90,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 ARG PIP_INDEX_URL=
 ARG PIP_TRUSTED_HOST=
 ARG APT_MIRROR=
+ARG INSTALL_LOCAL_EMBEDDING=true
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
@@ -118,8 +119,13 @@ RUN --mount=type=cache,target=/root/.cache/uv \
         export UV_INDEX_URL="$PIP_INDEX_URL"; \
         if [ -n "$PIP_TRUSTED_HOST" ]; then export UV_INSECURE_HOST="$PIP_TRUSTED_HOST"; fi; \
     fi \
-    && uv sync --frozen --no-install-project --no-dev \
-        --extra browser --extra local-embedding --extra knowledge-ocr
+    && if [ "$INSTALL_LOCAL_EMBEDDING" = "true" ]; then \
+        uv sync --frozen --no-install-project --no-dev \
+            --extra browser --extra local-embedding --extra knowledge-ocr; \
+    else \
+        uv sync --frozen --no-install-project --no-dev \
+            --extra browser --extra knowledge-ocr; \
+    fi
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
@@ -136,9 +142,15 @@ RUN --mount=type=cache,target=/root/.cache/uv \
         export UV_INDEX_URL="$PIP_INDEX_URL"; \
         if [ -n "$PIP_TRUSTED_HOST" ]; then export UV_INSECURE_HOST="$PIP_TRUSTED_HOST"; fi; \
     fi \
-    && uv sync --frozen --no-dev \
-        --extra browser --extra local-embedding --extra knowledge-ocr \
-    && .venv/bin/python -c "import cv2, fastembed, huggingface_hub, rapidocr, onnxruntime, pymupdf" \
+    && if [ "$INSTALL_LOCAL_EMBEDDING" = "true" ]; then \
+        uv sync --frozen --no-dev \
+            --extra browser --extra local-embedding --extra knowledge-ocr; \
+        .venv/bin/python -c "import cv2, fastembed, huggingface_hub, rapidocr, onnxruntime, pymupdf"; \
+    else \
+        uv sync --frozen --no-dev \
+            --extra browser --extra knowledge-ocr; \
+        .venv/bin/python -c "import cv2, rapidocr, onnxruntime, pymupdf"; \
+    fi \
     && apt-get update && apt-get install -y --no-install-recommends fonts-noto-cjk \
     && apt-get purge -y --auto-remove build-essential \
     && rm -rf /var/lib/apt/lists/* /tmp/*
@@ -146,7 +158,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # octop-harness 1.0.5 已保留 enum/array 类型；构建期补丁只补齐
 # LangChain 重建时丢失的嵌套 object properties，锚点失效时构建失败提示复核。
 COPY docker/patches/patch_harness_mcp.py /tmp/patch_harness_mcp.py
-RUN python /tmp/patch_harness_mcp.py && rm -f /tmp/patch_harness_mcp.py
+COPY docker/patches/patch_deepagents_prompt_caching.py /tmp/patch_deepagents_prompt_caching.py
+RUN python /tmp/patch_harness_mcp.py \
+    && python /tmp/patch_deepagents_prompt_caching.py \
+    && rm -f /tmp/patch_harness_mcp.py /tmp/patch_deepagents_prompt_caching.py
 
 RUN mkdir -p /data/.octop
 

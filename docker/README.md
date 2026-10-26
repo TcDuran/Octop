@@ -78,6 +78,14 @@ The image includes the `local-embedding` and `knowledge-ocr` extras alongside
 `uv sync` retains them. The build checks that the embedding and OCR modules can
 be imported; it does not download model weights or enable either feature.
 
+For CPUs incompatible with the instruction-set baseline required by the current
+NumPy/FastEmbed binaries, build without `local-embedding`. Local ONNX embeddings
+are unavailable; remote embedding providers can still be configured:
+
+```bash
+INSTALL_LOCAL_EMBEDDING=false bash docker/docker_build.sh octop:tag
+```
+
 Dependencies installed from the dashboard into a running container live in its
 writable layer and disappear when that container is recreated. Rebuild or pull
 an image containing these extras instead of relying on runtime installation.

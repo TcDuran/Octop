@@ -6,6 +6,8 @@
 #   OCTOP_DATABASE_PASSWORD=<strong-password>
 #
 # Leave OCTOP_DEFAULT_PASSWORD unset to use the first-run setup wizard.
+# Build the image for this host with INSTALL_LOCAL_EMBEDDING=false; its CPU does
+# not support the x86-64-v2 baseline required by the current local-embedding stack.
 #
 # The existing PostgreSQL container is reached through its external Docker
 # network. Create the dedicated role/database before starting Octop; this file

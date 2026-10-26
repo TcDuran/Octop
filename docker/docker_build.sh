@@ -44,6 +44,9 @@ fi
 if [ -n "${APT_MIRROR:-}" ]; then
     BUILD_ARGS+=(--build-arg "APT_MIRROR=${APT_MIRROR}")
 fi
+if [ -n "${INSTALL_LOCAL_EMBEDDING:-}" ]; then
+    BUILD_ARGS+=(--build-arg "INSTALL_LOCAL_EMBEDDING=${INSTALL_LOCAL_EMBEDDING}")
+fi
 
 echo "╔══════════════════════════════════════════════════╗"
 echo "║  正在构建 Octop Docker 镜像                      ║"
