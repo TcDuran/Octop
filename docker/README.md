@@ -103,7 +103,7 @@ image to receive these dependencies; restarting an older image is insufficient.
 ### ODC PostgreSQL deployment
 
 Use [`docker-compose-odc-postgres.yml`](docker-compose-odc-postgres.yml) for the ODC
-host. Build the release image with `INSTALL_LOCAL_EMBEDDING=false`; a configured remote
+host. Build the release image with `VITE_BASE_PATH=/octop/ INSTALL_LOCAL_EMBEDDING=false`; a configured remote
 third-party embedding provider remains available, and the knowledge base continues to
 use its SQLite sidecar under `/data/.octop/knowledge`. Create a dedicated PostgreSQL
 `octop` database and runtime role before the first start. Keep those values in the

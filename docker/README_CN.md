@@ -99,7 +99,7 @@ INSTALL_LOCAL_EMBEDDING=false bash docker/docker_build.sh octop:tag
 ### ODC PostgreSQL 部署
 
 生产 ODC 使用 [`docker-compose-odc-postgres.yml`](docker-compose-odc-postgres.yml)。
-镜像应在构建阶段使用 `INSTALL_LOCAL_EMBEDDING=false`，目标机器仍可配置第三方远程
+镜像应在构建阶段使用 `VITE_BASE_PATH=/octop/ INSTALL_LOCAL_EMBEDDING=false`，目标机器仍可配置第三方远程
 embedding；知识库原文、分块和向量索引继续保存在 `/data/.octop/knowledge` 的 SQLite
 sidecar。部署前由 DBA 创建独立的 PostgreSQL `octop` 数据库和运行账号，`.env` 只保存
 该账号的连接信息，不得填写共享 `plat` 数据库或超级用户。

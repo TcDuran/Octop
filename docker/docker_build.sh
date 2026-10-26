@@ -38,6 +38,9 @@ fi
 if [ -n "${NPM_REGISTRY:-}" ]; then
     BUILD_ARGS+=(--build-arg "NPM_REGISTRY=${NPM_REGISTRY}")
 fi
+if [ -n "${VITE_BASE_PATH:-}" ]; then
+    BUILD_ARGS+=(--build-arg "VITE_BASE_PATH=${VITE_BASE_PATH}")
+fi
 if [ -n "${NODE_MAX_OLD_SPACE_SIZE:-}" ]; then
     BUILD_ARGS+=(--build-arg "NODE_MAX_OLD_SPACE_SIZE=${NODE_MAX_OLD_SPACE_SIZE}")
 fi
