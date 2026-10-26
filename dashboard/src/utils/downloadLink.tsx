@@ -1,7 +1,6 @@
 import { Input, Typography } from "antd";
 
 import { getApiUrl } from "../api/config";
-import { apiPathFromUrl } from "./deploymentPath";
 import { requestUpload } from "../api/request";
 import i18n from "../i18n";
 import { message } from "./antdMessage";
@@ -28,8 +27,10 @@ export async function shareDownloadLink(
     "/downloads/link",
     body,
   );
-  const url = new URL(getApiUrl(apiPathFromUrl(link.url)), window.location.href)
-    .href;
+  const url = new URL(
+    getApiUrl(link.url.replace(/^\/api/, "")),
+    window.location.href,
+  ).href;
   const minutes = Math.max(1, Math.round(link.expires_in / 60));
 
   modal.confirm({

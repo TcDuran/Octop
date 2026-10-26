@@ -77,6 +77,13 @@ Compose 可在 `docker/.env` 中配置上述变量。注意：`.env` 只参与 C
 两次依赖安装均指定这些 extras，避免最后一次 `uv sync` 将其移除。构建时会检查
 嵌入与 OCR 模块能否导入；不会下载模型权重，也不会自动开启知识库或 OCR。
 
+如目标 CPU 不支持新版 NumPy/FastEmbed 二进制要求的指令集，可在构建时关闭
+`local-embedding`（本地 ONNX 嵌入将不可用，远程 embedding 仍可配置）：
+
+```bash
+INSTALL_LOCAL_EMBEDDING=false bash docker/docker_build.sh octop:tag
+```
+
 通过控制台安装到运行中容器的依赖位于容器可写层，重建容器后会丢失。应重新构建或
 拉取已包含这些 extras 的镜像，而不是依赖运行时安装。保留 `/data/.octop` 数据卷，
 即可保留配置、知识库索引与本地嵌入模型缓存。已有部署需要重新构建或升级镜像才能

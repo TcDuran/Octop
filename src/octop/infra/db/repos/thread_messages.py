@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from octop.infra.db.pool import DatabasePool
-from octop.infra.db.repos._base import DbRow, now_ts
+from octop.infra.db.repos._base import DbRow, now_ts, sql_upsert
 
 
 @dataclass(frozen=True)
@@ -91,7 +91,7 @@ class ThreadMessageRepo:
     def append_legacy_interval(self, thread_id: str, messages: Sequence[ThreadMessageInput]) -> int:
         """Append rollback turns without claiming the old projection is complete."""
         with self._db.transaction() as conn:
-            if self._db.dialect == "postgresql":
+            if self._db.dialect in {"postgresql", "opengauss"}:
                 conn.execute(
                     "SELECT thread_id FROM threads WHERE thread_id=? FOR UPDATE", (thread_id,)
                 ).fetchone()
@@ -146,8 +146,11 @@ class ThreadMessageRepo:
             conn.execute(
                 "INSERT INTO thread_history_projection(thread_id, status, updated_at, error) "
                 "VALUES (?, ?, ?, ?) "
-                "ON CONFLICT(thread_id) DO UPDATE SET "
-                "status = excluded.status, updated_at = excluded.updated_at, error = excluded.error",
+                + sql_upsert(
+                    self._db.dialect,
+                    "thread_id",
+                    "status = excluded.status, updated_at = excluded.updated_at, error = excluded.error",
+                ),
                 (thread_id, status, now_ts(), error),
             )
 
@@ -244,7 +247,7 @@ class ThreadMessageRepo:
             ).fetchone()
             if state is None or str(state["status"]) != "ready":
                 return 0
-            if self._db.dialect == "postgresql":
+            if self._db.dialect in {"postgresql", "opengauss"}:
                 conn.execute(
                     "SELECT thread_id FROM threads WHERE thread_id = ? FOR UPDATE",
                     (thread_id,),
@@ -290,7 +293,7 @@ class ThreadMessageRepo:
         without holding SQLite's writer lock for the entire transcript.
         """
         with self._db.transaction() as conn:
-            if self._db.dialect == "postgresql":
+            if self._db.dialect in {"postgresql", "opengauss"}:
                 conn.execute(
                     "SELECT thread_id FROM threads WHERE thread_id = ? FOR UPDATE",
                     (thread_id,),

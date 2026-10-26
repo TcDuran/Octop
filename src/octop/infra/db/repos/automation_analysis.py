@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from octop.infra.db.pool import DatabasePool
-from octop.infra.db.repos._base import now_ts
+from octop.infra.db.repos._base import now_ts, opengauss_upsert_by_key
 from octop.infra.utils.ulid import new_ulid
 
 
@@ -57,29 +57,52 @@ class AutomationAnalysisRepo:
     ) -> dict[str, Any]:
         ts = now_ts()
         with self._db.transaction() as conn:
-            conn.execute(
-                "INSERT INTO automation_analysis_items "
-                "(item_id, parent_cron_id, agent_id, user_id, source_key, source_item_key, "
-                "business_status, source_version, observed_at, created_at, updated_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
-                "ON CONFLICT(parent_cron_id, source_key, source_item_key) DO UPDATE SET "
-                "business_status = excluded.business_status, source_version = excluded.source_version, "
-                "observed_at = excluded.observed_at, updated_at = excluded.updated_at "
-                "WHERE excluded.observed_at >= automation_analysis_items.observed_at",
-                (
-                    new_ulid(),
-                    parent_cron_id,
-                    agent_id,
-                    user_id,
-                    source_key,
-                    source_item_key,
-                    business_status,
-                    source_version,
-                    observed_at,
-                    ts,
-                    ts,
-                ),
-            )
+            if self._db.dialect == "opengauss":
+                opengauss_upsert_by_key(
+                    conn,
+                    "automation_analysis_items",
+                    {
+                        "item_id": new_ulid(),
+                        "parent_cron_id": parent_cron_id,
+                        "agent_id": agent_id,
+                        "user_id": user_id,
+                        "source_key": source_key,
+                        "source_item_key": source_item_key,
+                        "business_status": business_status,
+                        "source_version": source_version,
+                        "observed_at": observed_at,
+                        "created_at": ts,
+                        "updated_at": ts,
+                    },
+                    ("parent_cron_id", "source_key", "source_item_key"),
+                    ("business_status", "source_version", "observed_at", "updated_at"),
+                    condition="observed_at <= ?",
+                    condition_params=(observed_at,),
+                )
+            else:
+                conn.execute(
+                    "INSERT INTO automation_analysis_items "
+                    "(item_id, parent_cron_id, agent_id, user_id, source_key, source_item_key, "
+                    "business_status, source_version, observed_at, created_at, updated_at) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                    "ON CONFLICT(parent_cron_id, source_key, source_item_key) DO UPDATE SET "
+                    "business_status = excluded.business_status, source_version = excluded.source_version, "
+                    "observed_at = excluded.observed_at, updated_at = excluded.updated_at "
+                    "WHERE excluded.observed_at >= automation_analysis_items.observed_at",
+                    (
+                        new_ulid(),
+                        parent_cron_id,
+                        agent_id,
+                        user_id,
+                        source_key,
+                        source_item_key,
+                        business_status,
+                        source_version,
+                        observed_at,
+                        ts,
+                        ts,
+                    ),
+                )
             row = conn.execute(
                 "SELECT * FROM automation_analysis_items WHERE parent_cron_id = ? "
                 "AND source_key = ? AND source_item_key = ?",

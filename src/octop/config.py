@@ -17,7 +17,7 @@ MIN_MAX_UPLOAD_MB = 1
 MAX_MAX_UPLOAD_MB = 1024
 DEFAULT_BROWSER_IDLE_TIMEOUT_MINUTES = 30
 
-_VALID_DRIVERS = frozenset({"sqlite", "postgresql"})
+_VALID_DRIVERS = frozenset({"sqlite", "postgresql", "opengauss"})
 
 _DATABASE_ENV_KEYS = (
     "OCTOP_DATABASE_URL",
@@ -57,15 +57,19 @@ class DatabaseConfig:
     def is_postgresql(self) -> bool:
         return self.driver == "postgresql"
 
+    @property
+    def is_opengauss(self) -> bool:
+        return self.driver == "opengauss"
+
     def resolve_sqlite_path(self, octop_root: Path) -> Path:
         """Absolute path to the SQLite file (relative paths are under ``octop_root``)."""
         p = Path(self.sqlite_path)
         return p if p.is_absolute() else octop_root / p
 
     def postgresql_conninfo(self) -> str:
-        """Return a libpq/psycopg conninfo URL for PostgreSQL."""
-        if self.driver != "postgresql":
-            raise ValueError("postgresql_conninfo() requires driver=postgresql")
+        """Return a libpq/psycopg URL for PostgreSQL or openGauss."""
+        if self.driver not in {"postgresql", "opengauss"}:
+            raise ValueError("postgresql_conninfo() requires driver=postgresql or opengauss")
         if self.url:
             return self.url
         user = quote_plus(self.user)
@@ -125,7 +129,6 @@ class CapabilitiesConfig:
 class OctopConfig:
     bind_host: str = "127.0.0.1"
     port: int = 8088
-    base_path: str = ""
     log_level: str = "info"
     access_token_ttl_seconds: int = 86400
     login_max_attempts: int = 5
@@ -145,30 +148,9 @@ class OctopConfig:
     max_upload_mb: int = DEFAULT_MAX_UPLOAD_MB
     browser_idle_timeout_minutes: int = DEFAULT_BROWSER_IDLE_TIMEOUT_MINUTES
 
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "base_path", normalize_base_path(self.base_path))
-
     @property
     def max_upload_bytes(self) -> int:
         return upload_mb_to_bytes(self.max_upload_mb)
-
-
-def normalize_base_path(value: str) -> str:
-    """Normalize a deployment prefix; keep root deployment represented by empty."""
-    import re
-
-    if not isinstance(value, str):
-        raise ValueError("base_path must be a URL path string")
-    path = value.strip().rstrip("/")
-    if not path:
-        return ""
-    if not path.startswith("/"):
-        path = f"/{path}"
-    if not re.fullmatch(r"(?:/[A-Za-z0-9._~-]+)+", path) or any(
-        part in {".", ".."} for part in path.split("/")
-    ):
-        raise ValueError("base_path must contain URL path segments without query or fragment")
-    return path
 
 
 def _defaults_for_file() -> dict[str, Any]:
@@ -365,11 +347,11 @@ def parse_database_config(merged: dict[str, Any]) -> DatabaseConfig:
     user = str(merged.get("user", "")).strip()
     port = int(merged.get("port", 5432))
     if not host:
-        raise ValueError("database.host is required for postgresql")
+        raise ValueError(f"database.host is required for {driver}")
     if not database:
-        raise ValueError("database.database is required for postgresql")
+        raise ValueError(f"database.database is required for {driver}")
     if not user:
-        raise ValueError("database.user is required for postgresql")
+        raise ValueError(f"database.user is required for {driver}")
     if not (1 <= port <= 65535):
         raise ValueError(f"database.port must be 1-65535, got {port}")
 
@@ -621,7 +603,6 @@ def load_config(path: Path) -> OctopConfig:
     return OctopConfig(
         bind_host=merged["bind_host"],
         port=int(merged["port"]),
-        base_path=os.environ.get("OCTOP_BASE_PATH", merged["base_path"]),
         log_level=merged["log_level"],
         access_token_ttl_seconds=int(merged["access_token_ttl_seconds"]),
         login_max_attempts=int(merged.get("login_max_attempts", 5)),

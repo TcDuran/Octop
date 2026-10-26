@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Dropdown } from "antd";
 import type { MenuProps } from "antd";
 import {
+  ChevronDown,
   ChevronRight,
   GitFork,
   MoreHorizontal,
@@ -26,6 +27,7 @@ import { sortSessions, toSession, type Session } from "../hooks/useSessions";
 import { formatThreadTitle } from "../utils/threadTitle";
 import { onSessionEvent } from "../hooks/chatStore";
 import { useExpertSessionCatalog } from "../hooks/useExpertSessionCatalog";
+import { useHiddenSharedExperts } from "../hooks/useHiddenSharedExperts";
 import { usePinnedExperts } from "../hooks/usePinnedExperts";
 import { useSessionWorkIds } from "../hooks/useSessionWorkIds";
 import { sortExpertsByPin } from "../utils/pinnedExpertsPrefs";
@@ -35,6 +37,7 @@ import {
   type ChatNavScope,
 } from "../utils/chatNavScope";
 import ChatNavScopeTabs, { ChatNavScopeEmpty } from "./ChatNavScopeTabs";
+import { useLayoutMode } from "../../../context/LayoutModeContext";
 import {
   expertVisibleInNavSearch,
   matchesNavQuery,
@@ -48,7 +51,7 @@ import RemoteExpertHint from "./RemoteExpertHint";
 import SessionWorkStatusIcon from "./SessionWorkStatusIcon";
 import TeamChatBadge from "./TeamChatBadge";
 import ExpertNameLabel from "./ExpertNameLabel";
-import ExpertNavActions from "./ExpertNavActions";
+import ExpertNavActions, { ExpertPinMark } from "./ExpertNavActions";
 import styles from "../index.module.less";
 
 /** Default preview size per expert in minimal nav (matches session page size). */
@@ -91,7 +94,7 @@ interface MinimalAgentSessionNavProps {
   onDeleteActive: (
     id: string,
     compact: boolean,
-  ) => void | Promise<boolean | void>;
+  ) => void | Promise<boolean | null | void>;
   onRenameActive: (id: string, name: string) => void;
   onPinActive: (id: string, pinned: boolean) => void;
   onFork: (id: string, agentId?: string | null) => void;
@@ -128,7 +131,10 @@ const PreviewSessionRow = memo(function PreviewSessionRow({
   isActive: boolean;
   workStatus: SessionWorkStatus;
   onSelect: (id: string) => void;
-  onDelete: (id: string, compact: boolean) => void | Promise<boolean | void>;
+  onDelete: (
+    id: string,
+    compact: boolean,
+  ) => void | Promise<boolean | null | void>;
   onRename: (id: string, name: string) => void;
   onPin: (id: string, pinned: boolean) => void;
   onFork: (id: string) => void;
@@ -205,9 +211,9 @@ const PreviewSessionRow = memo(function PreviewSessionRow({
       danger: true,
       onClick: ({ domEvent }) => {
         domEvent.stopPropagation();
-        confirmDeleteConversation(t, (compact) => {
-          void onDelete(session.id, compact);
-        });
+        confirmDeleteConversation(t, (compact) =>
+          onDelete(session.id, compact),
+        );
       },
     },
   ];
@@ -294,6 +300,7 @@ export default function MinimalAgentSessionNav({
 }: MinimalAgentSessionNavProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { isPlatEmbedded } = useLayoutMode();
   const [byAgent, setByAgent] = useState<Record<string, Session[]>>({});
   const liveWorkingIds = useSessionWorkIds();
   const [loading, setLoading] = useState(false);
@@ -310,19 +317,31 @@ export default function MinimalAgentSessionNav({
   );
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [navScope, setNavScope] = useState<ChatNavScope>(() =>
+  const [showingHidden, setShowingHidden] = useState(false);
+  const [selectedNavScope, setNavScope] = useState<ChatNavScope>(() =>
     initialChatNavScope(
       agents.find((agent) => agent.agent_id === activeAgentId),
     ),
   );
+  const navScope = isPlatEmbedded ? "experts" : selectedNavScope;
   const { pinnedIds, isPinned, togglePin } = usePinnedExperts();
-  const sortedAgents = useMemo(
+  const { filterVisible, pickHidden, hide, unhide, canHide } =
+    useHiddenSharedExperts();
+  const hiddenAgents = useMemo(
     () =>
-      sortExpertsByPin(agents, pinnedIds).filter((agent) =>
+      sortExpertsByPin(pickHidden(agents), pinnedIds).filter((agent) =>
         matchesChatNavScope(agent, navScope),
       ),
-    [agents, pinnedIds, navScope],
+    [agents, pickHidden, pinnedIds, navScope],
   );
+  const sortedAgents = useMemo(() => {
+    const visible = filterVisible(agents, {
+      keepAgentIds: activeAgentId ? [activeAgentId] : [],
+    });
+    return sortExpertsByPin(visible, pinnedIds).filter((agent) =>
+      matchesChatNavScope(agent, navScope),
+    );
+  }, [agents, filterVisible, activeAgentId, pinnedIds, navScope]);
   const searching = searchQuery.trim().length > 0;
   const catalog = useExpertSessionCatalog(sortedAgents, searching);
   const visibleAgents = useMemo(() => {
@@ -347,6 +366,37 @@ export default function MinimalAgentSessionNav({
     searching,
     sortedAgents,
   ]);
+  const listedHiddenAgents = useMemo(() => {
+    if (!showingHidden) return [];
+    const shown = new Set(visibleAgents.map((agent) => agent.agent_id));
+    return hiddenAgents.filter((agent) => {
+      if (shown.has(agent.agent_id)) return false;
+      if (!searching) return true;
+      return matchesNavQuery(agent.name, searchQuery);
+    });
+  }, [hiddenAgents, searchQuery, searching, showingHidden, visibleAgents]);
+  const navBlocks = useMemo(() => {
+    const blocks: Array<
+      | { kind: "agent"; agent: OctopAgent; key: string }
+      | { kind: "toggle"; key: string }
+    > = visibleAgents.map((agent) => ({
+      kind: "agent",
+      agent,
+      key: agent.agent_id,
+    }));
+    if (hiddenAgents.length === 0) return blocks;
+    blocks.push({ kind: "toggle", key: "hidden-toggle" });
+    if (showingHidden) {
+      for (const agent of listedHiddenAgents) {
+        blocks.push({
+          kind: "agent",
+          agent,
+          key: `hidden-${agent.agent_id}`,
+        });
+      }
+    }
+    return blocks;
+  }, [hiddenAgents.length, listedHiddenAgents, showingHidden, visibleAgents]);
 
   // Ensure the active expert folder stays open.
   useEffect(() => {
@@ -490,13 +540,14 @@ export default function MinimalAgentSessionNav({
     async (agentId: string, sessionId: string, compact: boolean) => {
       if (agentId === activeAgentId) {
         const deleted = await onDeleteActive(sessionId, compact);
-        if (deleted === false) return;
+        if (deleted !== true) return deleted;
         patchLocal(agentId, (prev) => prev.filter((s) => s.id !== sessionId));
-        return;
+        return true;
       }
       const deleted = await deleteConversation(agentId, sessionId, compact, t);
-      if (!deleted) return;
+      if (deleted !== true) return deleted;
       patchLocal(agentId, (prev) => prev.filter((s) => s.id !== sessionId));
+      return true;
     },
     [activeAgentId, onDeleteActive, patchLocal, t],
   );
@@ -567,8 +618,11 @@ export default function MinimalAgentSessionNav({
           aria-label={t("chat.searchSessions", "搜索会话")}
         />
       </div>
-      <ChatNavScopeTabs value={navScope} onChange={setNavScope} />
-      {visibleAgents.length === 0 ? (
+      {!isPlatEmbedded && (
+        <ChatNavScopeTabs value={navScope} onChange={setNavScope} />
+      )}
+      {visibleAgents.length === 0 &&
+      (searching || loading || hiddenAgents.length === 0) ? (
         searching ? (
           <div className={styles.minimalAgentEmpty}>
             {catalog.loading
@@ -579,7 +633,28 @@ export default function MinimalAgentSessionNav({
           <ChatNavScopeEmpty scope={navScope} />
         )
       ) : null}
-      {visibleAgents.map((agent) => {
+      {navBlocks.map((block) => {
+        if (block.kind === "toggle") {
+          return (
+            <button
+              key={block.key}
+              type="button"
+              className={styles.sessionLoadMore}
+              aria-expanded={showingHidden}
+              onClick={() => setShowingHidden((open) => !open)}
+            >
+              {showingHidden ? (
+                <ChevronDown size={14} aria-hidden />
+              ) : (
+                <ChevronRight size={14} aria-hidden />
+              )}
+              {showingHidden
+                ? t("chat.expertListHiddenCollapse")
+                : t("chat.expertListHidden", { count: hiddenAgents.length })}
+            </button>
+          );
+        }
+        const agent = block.agent;
         const preview = byAgent[agent.agent_id] ?? [];
         const catalogList = catalog.byAgent[agent.agent_id] ?? [];
         const live =
@@ -604,23 +679,28 @@ export default function MinimalAgentSessionNav({
           : !collapsedFolders.has(agent.agent_id);
 
         return (
-          <section key={agent.agent_id} className={styles.minimalAgentSection}>
+          <section key={block.key} className={styles.minimalAgentSection}>
             <div className={styles.minimalAgentHeader}>
               <span className={styles.minimalAgentIconSlot}>
-                <span
-                  className={styles.minimalAgentAvatar}
-                  style={{
-                    color: agent.color || "var(--fn-text-tertiary)",
-                    background: `${agent.color || "#6366f1"}14`,
-                  }}
-                  aria-hidden
+                <SharedExpertHint
+                  agent={agent}
+                  className={styles.minimalAgentAvatarHost}
                 >
-                  <ExpertIcon
-                    iconUrl={agent.icon_url}
-                    iconName={agent.icon_name}
-                    size={agent.icon_url?.trim() ? 22 : 14}
-                  />
-                </span>
+                  <span
+                    className={styles.minimalAgentAvatar}
+                    style={{
+                      color: agent.color || "var(--fn-text-tertiary)",
+                      background: `${agent.color || "#6366f1"}14`,
+                    }}
+                    aria-hidden
+                  >
+                    <ExpertIcon
+                      iconUrl={agent.icon_url}
+                      iconName={agent.icon_name}
+                      size={agent.icon_url?.trim() ? 22 : 14}
+                    />
+                  </span>
+                </SharedExpertHint>
                 <button
                   type="button"
                   className={styles.minimalAgentChevronBtn}
@@ -650,9 +730,9 @@ export default function MinimalAgentSessionNav({
                     name={agent.name}
                     className={styles.minimalAgentName}
                   />
+                  <ExpertPinMark pinned={isPinned(agent.agent_id)} />
                   <TeamChatBadge agent={agent} />
-                  <SharedExpertHint agent={agent} />
-                  <RemoteExpertHint agent={agent} />
+                  <RemoteExpertHint agent={agent} compact />
                 </span>
                 <AgentUnreadBadge count={agent.unread_count ?? 0} />
               </button>
@@ -661,6 +741,17 @@ export default function MinimalAgentSessionNav({
                 pinned={isPinned(agent.agent_id)}
                 onTogglePin={() => togglePin(agent.agent_id)}
                 onNewChat={() => onNewChat(agent.agent_id)}
+                onHide={
+                  canHide(agent) &&
+                  !hiddenAgents.some((row) => row.agent_id === agent.agent_id)
+                    ? () => hide(agent.agent_id)
+                    : undefined
+                }
+                onUnhide={
+                  hiddenAgents.some((row) => row.agent_id === agent.agent_id)
+                    ? () => unhide(agent.agent_id)
+                    : undefined
+                }
               />
             </div>
 
@@ -690,7 +781,7 @@ export default function MinimalAgentSessionNav({
                       )}
                       onSelect={(id) => onSelect(id, agent.agent_id)}
                       onDelete={(id, compact) =>
-                        void handleDelete(agent.agent_id, id, compact)
+                        handleDelete(agent.agent_id, id, compact)
                       }
                       onRename={(id, name) =>
                         handleRename(agent.agent_id, id, name)

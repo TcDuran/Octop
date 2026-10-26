@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from octop.infra.db.pool import DatabasePool
-from octop.infra.db.repos._base import now_ts
+from octop.infra.db.repos._base import now_ts, opengauss_key_lock, sql_upsert
 
 
 class SecretRepo:
@@ -23,6 +23,8 @@ class SecretRepo:
             return existing
         value = factory()
         with self._db.transaction() as conn:
+            if self._db.dialect == "opengauss":
+                opengauss_key_lock(conn, "secrets", (k,))
             # Check again inside transaction to avoid race
             r = conn.execute("SELECT v FROM secrets WHERE k = ?", (k,)).fetchone()
             if r is not None:
@@ -45,7 +47,9 @@ class SecretRepo:
         with self._db.transaction() as conn:
             conn.execute(
                 "INSERT INTO secrets(k, v, created_at) VALUES (?, ?, ?) "
-                "ON CONFLICT(k) DO UPDATE SET v = excluded.v, rotated_at = excluded.created_at",
+                + sql_upsert(
+                    self._db.dialect, "k", "v = excluded.v, rotated_at = excluded.created_at"
+                ),
                 (k, value, now_ts()),
             )
 

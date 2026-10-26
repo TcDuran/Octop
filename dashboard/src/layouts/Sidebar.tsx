@@ -1,4 +1,3 @@
-import { withoutBasePath } from "../utils/deploymentPath";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -26,6 +25,7 @@ import MinimalRecordsHost from "./MinimalRecordsHost";
 import SidebarCollapsedIconNav from "./SidebarCollapsedIconNav";
 import SidebarMinimalPaneToggle from "./SidebarMinimalPaneToggle";
 import { preferencesApi } from "../api/modules/preferences";
+import { publicUrl } from "../utils/publicUrl";
 import {
   COLLAPSED_WIDTH,
   EXPANDED_WIDTH,
@@ -401,7 +401,8 @@ export default function Sidebar({
   const setUser = useSetCurrentUser();
   const { hasUpdate } = useUpdateStatus();
   const { mobileEnabled } = useServerCapabilities();
-  const { layoutMode, minimalPane, setMinimalPane } = useLayoutMode();
+  const { layoutMode, minimalPane, setMinimalPane, isPlatEmbedded } =
+    useLayoutMode();
   const isMinimal = layoutMode === "minimal";
   const onChatPath = isChatPath(location.pathname);
   const catalog = useMemo(
@@ -411,8 +412,17 @@ export default function Sidebar({
   const [savedLayout, setSavedLayout] = useState<SidebarNavLayout | null>(null);
   const [customizerOpen, setCustomizerOpen] = useState(false);
   const navSections = useMemo(
-    () => sectionsFromLayout(catalog, savedLayout),
-    [catalog, savedLayout],
+    () =>
+      isPlatEmbedded
+        ? [
+            {
+              items: catalog
+                .flatMap((section) => section.items)
+                .filter((item) => item.key === "chat" || item.key === "tasks"),
+            },
+          ]
+        : sectionsFromLayout(catalog, savedLayout),
+    [catalog, savedLayout, isPlatEmbedded],
   );
   const { toggleGroup, isGroupCollapsed } = useNavGroupCollapse(
     navSections,
@@ -441,8 +451,8 @@ export default function Sidebar({
 
   const isRailCollapsed = collapsed && !isMobile;
   const wordmarkSrc = isDark
-    ? "./logo_horizontal_white.png"
-    : "./logo_horizontal_dark.png";
+    ? publicUrl("logo_horizontal_white.png")
+    : publicUrl("logo_horizontal_dark.png");
 
   const selectMinimalPane = useCallback(
     (pane: MinimalNavPane, opts?: { expand?: boolean }) => {
@@ -473,10 +483,7 @@ export default function Sidebar({
     // When navigating to /chat, preserve the current chatId in the URL so the
     // Chat component is not remounted (key stays the same) and the user stays
     // on their most recent conversation instead of seeing a blank welcome screen.
-    if (
-      path === "/chat" &&
-      withoutBasePath(window.location.pathname).startsWith("/chat/")
-    ) {
+    if (path === "/chat" && window.location.pathname.startsWith("/chat/")) {
       if (isMobile) onToggle();
       return;
     }
@@ -513,7 +520,7 @@ export default function Sidebar({
   const brandInner = (
     <>
       <img
-        src={isRailCollapsed ? "./pwa-192.png" : wordmarkSrc}
+        src={isRailCollapsed ? publicUrl("pwa-192.png") : wordmarkSrc}
         alt="Octop"
         style={{
           height: isRailCollapsed ? 32 : isMobile ? 38 : 36,
@@ -534,7 +541,7 @@ export default function Sidebar({
     </>
   );
 
-  const userFooter = (
+  const userFooter = !isPlatEmbedded ? (
     <div
       className={styles.sidebarUser}
       style={{
@@ -553,7 +560,7 @@ export default function Sidebar({
         onCustomizeNav={() => setCustomizerOpen(true)}
       />
     </div>
-  );
+  ) : null;
 
   const customizer = (
     <SidebarNavCustomizer

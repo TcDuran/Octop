@@ -1,6 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { getAuthToken } from "../api/request";
-import { getWsUrl } from "../api/config";
 import { normalizeUrl } from "../utils/normalizeUrl";
 import {
   closeBrowserTabOptimistic,
@@ -47,7 +46,8 @@ function buildWsUrl(
         bridgeConnectionId,
       )}/browser-stream/ws`
     : "/browser-stream/ws";
-  const base = getWsUrl(path);
+  const protocol = window.location.protocol === "https:" ? "wss" : "ws";
+  const base = `${protocol}://${window.location.host}/api${path}`;
   const params = new URLSearchParams({
     width: String(width),
     height: String(height),

@@ -1,0 +1,372 @@
+{
+  "run_id": "506e7fe7",
+  "databases": [
+    "octop_verify_20261022_506e7fe7",
+    "octop_verify_restore_20261022_506e7fe7"
+  ],
+  "results": [
+    {
+      "name": "create_isolated_database",
+      "status": "passed",
+      "evidence": {
+        "database": "octop_verify_20261022_506e7fe7",
+        "oid": 87716,
+        "owner": "plat"
+      }
+    },
+    {
+      "name": "create_isolated_database",
+      "status": "passed",
+      "evidence": {
+        "database": "octop_verify_restore_20261022_506e7fe7",
+        "oid": 87717,
+        "owner": "plat"
+      }
+    },
+    {
+      "name": "isolated_database_identity",
+      "status": "passed",
+      "evidence": [
+        "octop_verify_20261022_506e7fe7",
+        "plat",
+        "(openGauss 6.0.5 build 5ba692ab) compiled at 2026-05-07 12:36:04 commit 0 last mr 9228  on x86_64-unknown-linux-gnu, compiled by g++ (GCC) 10.3.0, 64-bit"
+      ]
+    },
+    {
+      "name": "isolated_database_settings",
+      "status": "passed",
+      "evidence": [
+        [
+          "enable_default_ustore_table",
+          "off",
+          null
+        ],
+        [
+          "lockwait_timeout",
+          "1200000",
+          "ms"
+        ],
+        [
+          "sql_compatibility",
+          "PG",
+          null
+        ]
+      ]
+    },
+    {
+      "name": "create_schema",
+      "status": "passed",
+      "evidence": {
+        "rowcount": -1
+      },
+      "scope": "native",
+      "seconds": 1.156
+    },
+    {
+      "name": "identity_original_syntax",
+      "status": "failed",
+      "evidence": "syntax error at or near \"BY\"",
+      "scope": "native",
+      "sqlstate": "42601",
+      "error_type": "SyntaxError",
+      "seconds": 1.061
+    },
+    {
+      "name": "create_function_to_regclass",
+      "status": "passed",
+      "evidence": {
+        "rowcount": -1
+      },
+      "scope": "prototype",
+      "seconds": 0.329
+    },
+    {
+      "name": "create_function_to_jsonb",
+      "status": "passed",
+      "evidence": {
+        "rowcount": -1
+      },
+      "scope": "prototype",
+      "seconds": 0.156
+    },
+    {
+      "name": "create_function_hashtextextended",
+      "status": "passed",
+      "evidence": {
+        "rowcount": -1
+      },
+      "scope": "prototype",
+      "seconds": 0.24
+    },
+    {
+      "name": "create_function_jsonb_path_query_array",
+      "status": "passed",
+      "evidence": {
+        "rowcount": -1
+      },
+      "scope": "prototype",
+      "seconds": 0.233
+    },
+    {
+      "name": "compatibility_function_behavior",
+      "status": "passed",
+      "evidence": {
+        "arrays_scalars_records_sql_null": true,
+        "unsupported_path": {
+          "expected_sqlstate": "0A000",
+          "message": "unsupported JSONPath"
+        },
+        "unsupported_scalar": {
+          "expected_sqlstate": "22023",
+          "message": "prototype accepts arrays only"
+        }
+      },
+      "scope": "prototype",
+      "seconds": 0.75
+    },
+    {
+      "name": "sequence_generated_fts_and_indexes",
+      "status": "passed",
+      "evidence": "explicit sequence, Astore, generated column, GIN, concurrent index created",
+      "scope": "prototype",
+      "seconds": 1.335
+    },
+    {
+      "name": "real_crud_and_generated_fulltext",
+      "status": "passed",
+      "evidence": {
+        "insert_update_delete_returning": true,
+        "generated_fts_recomputed": true
+      },
+      "scope": "prototype",
+      "seconds": 1.222
+    },
+    {
+      "name": "deferrable_foreign_key_astore",
+      "status": "passed",
+      "evidence": {
+        "deferred_child_before_parent": true,
+        "foreign_key_enforced": {
+          "expected_sqlstate": "23503",
+          "message": "insert or update on table \"child\" violates foreign key constraint \"child_p_fkey\""
+        }
+      },
+      "scope": "native",
+      "seconds": 0.898
+    },
+    {
+      "name": "original_on_conflict_real_dml",
+      "status": "failed",
+      "evidence": "syntax error at or near \"CONFLICT\"",
+      "scope": "native",
+      "sqlstate": "42601",
+      "error_type": "SyntaxError",
+      "seconds": 0.078
+    },
+    {
+      "name": "native_upsert_conditional_ignore_rowcount",
+      "status": "passed",
+      "evidence": {
+        "insert": {
+          "rowcount": 1
+        },
+        "update": {
+          "rowcount": 1
+        },
+        "older_rejected": {
+          "rowcount": 0
+        },
+        "duplicate_ignored": {
+          "rowcount": 0
+        }
+      },
+      "scope": "native",
+      "seconds": 0.609
+    },
+    {
+      "name": "native_upsert_returning",
+      "status": "passed",
+      "evidence": [
+        [
+          "a",
+          "returning"
+        ]
+      ],
+      "scope": "native",
+      "seconds": 0.21
+    },
+    {
+      "name": "native_upsert_unique_field_update",
+      "status": "failed",
+      "evidence": "INSERT ON DUPLICATE KEY UPDATE don't allow update on primary key or unique key.",
+      "scope": "native",
+      "sqlstate": "0A000",
+      "error_type": "FeatureNotSupported",
+      "seconds": 0.655
+    },
+    {
+      "name": "multiple_unique_conflict_hazard",
+      "status": "passed",
+      "evidence": {
+        "hazard_reproduced": true,
+        "rows": [
+          [
+            "event-a",
+            "second"
+          ]
+        ],
+        "meaning": "native upsert updates on another unique constraint; not equivalent to targeted ON CONFLICT"
+      },
+      "scope": "native",
+      "seconds": 0.89
+    },
+    {
+      "name": "atomic_one_time_consume",
+      "status": "passed",
+      "evidence": {
+        "concurrent_success_counts": [
+          1,
+          0
+        ]
+      },
+      "scope": "native",
+      "seconds": 0.55
+    },
+    {
+      "name": "real_skip_locked_two_sessions",
+      "status": "passed",
+      "evidence": [
+        [
+          2
+        ]
+      ],
+      "scope": "native",
+      "seconds": 0.65
+    },
+    {
+      "name": "prototype_transaction_advisory_lock",
+      "status": "passed",
+      "evidence": {
+        "first_acquired": true,
+        "second_acquired": false
+      },
+      "scope": "prototype",
+      "seconds": 0.13
+    },
+    {
+      "name": "synthetic_incremental_upgrade",
+      "status": "failed",
+      "evidence": "syntax error at or near \"NOT\"",
+      "scope": "prototype",
+      "sqlstate": "42601",
+      "error_type": "SyntaxError",
+      "seconds": 0.931
+    },
+    {
+      "name": "unmodified_control_plane_initialization",
+      "status": "failed",
+      "evidence": "syntax error at or near \"BY\"",
+      "scope": "application",
+      "sqlstate": "42601",
+      "error_type": "SyntaxError",
+      "seconds": 0.093
+    },
+    {
+      "name": "unmodified_memory_initialization",
+      "status": "failed",
+      "evidence": "unrecognized configuration parameter \"lock_timeout\"",
+      "scope": "application",
+      "sqlstate": "42704",
+      "error_type": "UndefinedObject",
+      "seconds": 0.527
+    },
+    {
+      "name": "unmodified_checkpoint_migrations",
+      "status": "failed",
+      "evidence": "syntax error at or near \"NOT\"",
+      "scope": "application",
+      "sqlstate": "42601",
+      "error_type": "SyntaxError",
+      "seconds": 3.022
+    },
+    {
+      "name": "prototype_checkpoint_graph_restart_idempotency",
+      "status": "failed",
+      "evidence": "syntax error at or near \"NOT\"",
+      "scope": "prototype",
+      "sqlstate": "42601",
+      "error_type": "SyntaxError",
+      "seconds": 3.52
+    },
+    {
+      "name": "prototype_checkpoint_interrupt_resume",
+      "status": "failed",
+      "evidence": "syntax error at or near \"NOT\"",
+      "scope": "prototype",
+      "sqlstate": "42601",
+      "error_type": "SyntaxError",
+      "seconds": 0.075
+    },
+    {
+      "name": "matching_backup_tool_version",
+      "status": "passed",
+      "evidence": {
+        "returncode": 0,
+        "output": "gs_dump (openGauss 6.0.5 build 5ba692ab) compiled at 2026-05-07 12:36:04 commit 0 last mr 9228 \n"
+      },
+      "scope": "backup",
+      "seconds": 2.533
+    },
+    {
+      "name": "gs_dump_custom_archive",
+      "status": "failed",
+      "evidence": "/usr/local/opengauss/bin/gs_dump: invalid option -- 'd'\n",
+      "scope": "backup",
+      "sqlstate": null,
+      "error_type": "RuntimeError",
+      "seconds": 1.702
+    },
+    {
+      "name": "backup_test_sequence",
+      "status": "passed",
+      "evidence": null,
+      "scope": "backup",
+      "seconds": 5.308
+    },
+    {
+      "name": "unmodified_repository_pg_integration",
+      "status": "failed",
+      "evidence": {
+        "returncode": 1,
+        "log": "repository-integration.log",
+        "summary": "rror removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-7c07c135-8e6b-486c-a8a2-d8b4627f258f/popen-gw6/test_ensure_profile_writable_r0\n  <class 'OSError'>: [Errno 66] Directory not empty: 'test_ensure_profile_writable_r0'\n    warnings.warn(\n\n.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95\n  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-7c07c135-8e6b-486c-a8a2-d8b4627f258f/popen-gw6\n  <class 'OSError'>: [Errno 66] Directory not empty: 'popen-gw6'\n    warnings.warn(\n\n.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95\n  /Users/guixiaolong/Environment/octop/.venv/lib/python3.12/site-packages/_pytest/pathlib.py:95: PytestWarning: (rm_rf) error removing /private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-7c07c135-8e6b-486c-a8a2-d8b4627f258f\n  <class 'OSError'>: [Errno 66] Directory not empty: '/private/var/folders/5s/8jw80q8x3970zk3xgfmqhwsw0000gn/T/pytest-of-guixiaolong/garbage-7c07c135-8e6b-486c-a8a2-d8b4627f258f'\n    warnings.warn(\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ============================\nFAILED tests/integration/test_postgresql_control_plane.py::test_pg_migrate_and_user_roundtrip\nFAILED tests/integration/test_postgresql_control_plane.py::test_pg_control_plane_repo_smoke\nFAILED tests/integration/test_postgresql_control_plane.py::test_pg_backup_roundtrip\nFAILED tests/integration/test_postgresql_control_plane.py::test_setup_database_postgresql_bind\nFAILED tests/integration/test_postgresql_control_plane.py::test_pg_knowledge_base_max_documents_schema_and_crud\nFAILED tests/integration/test_postgresql_checkpoint_history.py::test_postgres_checkpoint_history_uses_graph_reader\n6 failed, 1 passed, 66 warnings in 14.99s\n"
+      },
+      "scope": "application"
+    },
+    {
+      "name": "cleanup_database",
+      "status": "passed",
+      "evidence": {
+        "database": "octop_verify_restore_20261022_506e7fe7",
+        "oid": 87717
+      }
+    },
+    {
+      "name": "cleanup_database",
+      "status": "passed",
+      "evidence": {
+        "database": "octop_verify_20261022_506e7fe7",
+        "oid": 87716
+      }
+    },
+    {
+      "name": "cleanup_verification",
+      "status": "passed",
+      "evidence": {
+        "database_catalog_unchanged": true,
+        "test_databases_absent": true,
+        "management_read_only": "on"
+      }
+    }
+  ]
+}

@@ -1,0 +1,177 @@
+{
+  "run_id": "2c2b5836",
+  "databases": [
+    "octop_verify_20261022_2c2b5836",
+    "octop_verify_restore_20261022_2c2b5836"
+  ],
+  "results": [
+    {
+      "name": "create_isolated_database",
+      "status": "passed",
+      "evidence": {
+        "database": "octop_verify_20261022_2c2b5836",
+        "oid": 87710,
+        "owner": "plat"
+      }
+    },
+    {
+      "name": "create_isolated_database",
+      "status": "passed",
+      "evidence": {
+        "database": "octop_verify_restore_20261022_2c2b5836",
+        "oid": 87711,
+        "owner": "plat"
+      }
+    },
+    {
+      "name": "isolated_database_identity",
+      "status": "passed",
+      "evidence": [
+        "octop_verify_20261022_2c2b5836",
+        "plat",
+        "(openGauss 6.0.5 build 5ba692ab) compiled at 2026-05-07 12:36:04 commit 0 last mr 9228  on x86_64-unknown-linux-gnu, compiled by g++ (GCC) 10.3.0, 64-bit"
+      ]
+    },
+    {
+      "name": "isolated_database_settings",
+      "status": "passed",
+      "evidence": [
+        [
+          "enable_default_ustore_table",
+          "off",
+          null
+        ],
+        [
+          "lockwait_timeout",
+          "1200000",
+          "ms"
+        ],
+        [
+          "sql_compatibility",
+          "PG",
+          null
+        ]
+      ]
+    },
+    {
+      "name": "create_schema",
+      "status": "failed",
+      "evidence": "syntax error at or near \"verify\"",
+      "scope": "native",
+      "sqlstate": "42601",
+      "error_type": "SyntaxError",
+      "seconds": 0.066
+    },
+    {
+      "name": "identity_original_syntax",
+      "status": "failed",
+      "evidence": "syntax error at or near \"verify\"",
+      "scope": "native",
+      "sqlstate": "42601",
+      "error_type": "SyntaxError",
+      "seconds": 0.059
+    },
+    {
+      "name": "create_function_to_regclass",
+      "status": "passed",
+      "evidence": {
+        "rowcount": -1
+      },
+      "scope": "prototype",
+      "seconds": 0.18
+    },
+    {
+      "name": "create_function_to_jsonb",
+      "status": "passed",
+      "evidence": {
+        "rowcount": -1
+      },
+      "scope": "prototype",
+      "seconds": 0.233
+    },
+    {
+      "name": "create_function_hashtextextended",
+      "status": "passed",
+      "evidence": {
+        "rowcount": -1
+      },
+      "scope": "prototype",
+      "seconds": 0.138
+    },
+    {
+      "name": "create_function_jsonb_path_query_array",
+      "status": "passed",
+      "evidence": {
+        "rowcount": -1
+      },
+      "scope": "prototype",
+      "seconds": 0.162
+    },
+    {
+      "name": "compatibility_function_behavior",
+      "status": "passed",
+      "evidence": {
+        "arrays_scalars_records_sql_null": true,
+        "unsupported_path": {
+          "expected_sqlstate": "0A000",
+          "message": "unsupported JSONPath"
+        },
+        "unsupported_scalar": {
+          "expected_sqlstate": "22023",
+          "message": "prototype accepts arrays only"
+        }
+      },
+      "scope": "prototype",
+      "seconds": 1.021
+    },
+    {
+      "name": "sequence_generated_fts_and_indexes",
+      "status": "failed",
+      "evidence": "syntax error at or near \"verify\"",
+      "scope": "prototype",
+      "sqlstate": "42601",
+      "error_type": "SyntaxError",
+      "seconds": 0.164
+    },
+    {
+      "name": "deferrable_foreign_key_astore",
+      "status": "failed",
+      "evidence": "syntax error at or near \"verify\"",
+      "scope": "native",
+      "sqlstate": "42601",
+      "error_type": "SyntaxError",
+      "seconds": 0.078
+    },
+    {
+      "name": "validation_orchestration",
+      "status": "failed",
+      "evidence": "syntax error at or near \"verify\"\nLINE 1: CREATE TABLE verify.kv(k TEXT PRIMARY KEY,v TEXT NOT NULL,ob...\n                     ^",
+      "error_type": "SyntaxError"
+    },
+    {
+      "name": "cleanup_database",
+      "status": "passed",
+      "evidence": {
+        "database": "octop_verify_restore_20261022_2c2b5836",
+        "oid": 87711
+      }
+    },
+    {
+      "name": "cleanup_database",
+      "status": "passed",
+      "evidence": {
+        "database": "octop_verify_20261022_2c2b5836",
+        "oid": 87710
+      }
+    },
+    {
+      "name": "cleanup_verification",
+      "status": "passed",
+      "evidence": {
+        "database_catalog_unchanged": true,
+        "test_databases_absent": true,
+        "management_read_only": "on"
+      }
+    }
+  ]
+}

@@ -6,6 +6,8 @@
 #   OCTOP_DATABASE_PASSWORD=<strong-password>
 #
 # Leave OCTOP_DEFAULT_PASSWORD unset to use the first-run setup wizard.
+# Build the image for this host with INSTALL_LOCAL_EMBEDDING=false; its CPU does
+# not support the x86-64-v2 baseline required by the current local-embedding stack.
 #
 # The existing PostgreSQL container is reached through its external Docker
 # network. Create the dedicated role/database before starting Octop; this file
@@ -16,10 +18,10 @@
 #   docker compose -f docker-compose-odc-postgres.yml config
 #   docker compose -f docker-compose-odc-postgres.yml up -d
 #
-# Nginx on port 7321 must preserve the /octop prefix when proxying:
+# Build the frontend with VITE_BASE_PATH=/octop/. Nginx strips the prefix:
 #   location = /octop { return 308 /octop/; }
 #   location ^~ /octop/ {
-#       proxy_pass http://127.0.0.1:8088;   # No trailing slash: preserve prefix.
+#       proxy_pass http://127.0.0.1:8088/;  # Trailing slash strips /octop/.
 #       proxy_http_version 1.1;
 #       proxy_set_header Upgrade $http_upgrade;
 #       proxy_set_header Connection "upgrade";
@@ -53,7 +55,6 @@ services:
       HOME: /data
       OCTOP_BIND_HOST: 0.0.0.0
       OCTOP_PORT: "8088"
-      OCTOP_BASE_PATH: /octop
       OCTOP_LOG_LEVEL: ${OCTOP_LOG_LEVEL:-info}
       OCTOP_DEFAULT_PASSWORD: ${OCTOP_DEFAULT_PASSWORD:-}
       OCTOP_DATABASE_DRIVER: postgresql
@@ -63,7 +64,7 @@ services:
       OCTOP_DATABASE_USER: ${OCTOP_DATABASE_USER:-octop}
       OCTOP_DATABASE_PASSWORD: ${OCTOP_DATABASE_PASSWORD:?Set OCTOP_DATABASE_PASSWORD in /apps/octop/.env}
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8088/octop/api/health"]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8088/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3

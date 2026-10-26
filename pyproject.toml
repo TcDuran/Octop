@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "octop"
-version = "1.0.2"
+version = "1.0.3b1"
 description = "Smarter self-hosted AI assistant for multiple users and agents, built on octop-harness"
 readme = "README.md"
 license = { text = "MIT" }
@@ -21,8 +21,8 @@ dependencies = [
     "apscheduler>=3.10,<4",
     "argon2-cffi>=23.1",
     "pyjwt>=2.8",
-    "octop-harness[all]>=1.0.4",
-    "octop-memory>=1.0.2",
+    "octop-harness[all]>=1.0.5",
+    "octop-memory==1.0.2+opengauss.2",
     "lark-oapi>=1.7.3",
     "octop-gateway>=1.0.3",
     "cryptography>=41",
@@ -36,7 +36,7 @@ dependencies = [
     "octop-browser>=1.0.0",
     "playwright>=1.40",
     "psycopg[binary]>=3.2",
-    "langgraph-checkpoint-postgres>=2.0",
+    "langgraph-checkpoint-postgres==3.1.0",
     "mcp>=1.9,<2",
     "pillow>=10.0",
     "pypdf>=5.0",
@@ -113,7 +113,7 @@ include = [
     "src/octop/infra/agents/plugins/bundled/**/*",
     "src/octop/infra/agents/subagents/library/**/*",
     "src/octop/infra/agents/subagents/divisions.json",
-    "src/octop/infra/desktop/scripts/**/*",
+    "src/octop/infra/control/desktop/scripts/**/*",
 ]
 artifacts = [
     "src/octop/dashboard/**/*",
@@ -217,3 +217,6 @@ markers = [
 filterwarnings = [
     "ignore::starlette.exceptions.StarletteDeprecationWarning",
 ]
+
+[tool.uv.sources]
+octop-memory = { path = "vendor/octop-memory/octop_memory-1.0.2+opengauss.2.tar.gz" }

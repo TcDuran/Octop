@@ -24,16 +24,16 @@ def memory_backend_from_agent_config(
       ``memory.sqlite``); on PostgreSQL control plane, default to the same
       DSN with per-agent schema (``use_control_plane_dsn``)
     * ``{"type": "sqlite", "db_path": "..."}`` (db_path optional)
-    * ``{"type": "postgres", "dsn": "..."}``
+    * ``{"type": "postgres" | "opengauss", "dsn": "..."}``
     * ``{"type": "postgres", "use_control_plane_dsn": true}``
     """
     mem = cfg.get("memory") if isinstance(cfg.get("memory"), dict) else {}
     backend = mem.get("backend") if isinstance(mem, dict) else None
     if backend is None:
-        if octop_config.database.is_postgresql:
+        if octop_config.database.is_postgresql or octop_config.database.is_opengauss:
             return {
                 "memory_backend": {
-                    "type": "postgres",
+                    "type": "opengauss" if octop_config.database.is_opengauss else "postgres",
                     "dsn": octop_config.database.postgresql_conninfo(),
                 }
             }
@@ -51,16 +51,18 @@ def memory_backend_from_agent_config(
             spec["db_path"] = str(db_path)
         return {"memory_backend": spec}
 
-    if btype == "postgres":
+    if btype in {"postgres", "opengauss"}:
         dsn = backend.get("dsn")
         if backend.get("use_control_plane_dsn") or not dsn:
-            if not octop_config.database.is_postgresql:
+            if (btype == "postgres" and not octop_config.database.is_postgresql) or (
+                btype == "opengauss" and not octop_config.database.is_opengauss
+            ):
                 raise OctopError(
                     ErrorCode.SLASH_BAD_ARGS,
-                    "memory.backend use_control_plane_dsn requires postgresql control plane",
+                    f"memory.backend use_control_plane_dsn requires {btype} control plane",
                 )
             dsn = octop_config.database.postgresql_conninfo()
-        return {"memory_backend": {"type": "postgres", "dsn": str(dsn)}}
+        return {"memory_backend": {"type": btype, "dsn": str(dsn)}}
 
     raise OctopError(ErrorCode.SLASH_BAD_ARGS, f"unsupported memory.backend.type: {btype!r}")
 
@@ -81,7 +83,7 @@ def open_memory_kwargs(
     if not isinstance(spec, dict):
         return ns, "sqlite", {"db_path": str(host_system_dir(workspace_dir, cfg) / "memory.sqlite")}
     btype = str(spec.get("type") or "sqlite")
-    if btype == "postgres":
-        return ns, "postgres", {"dsn": spec["dsn"]}
+    if btype in {"postgres", "opengauss"}:
+        return ns, btype, {"dsn": spec["dsn"]}
     db_path = spec.get("db_path") or str(host_system_dir(workspace_dir, cfg) / "memory.sqlite")
     return ns, "sqlite", {"db_path": str(db_path)}

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import httpx
 import jwt
@@ -47,16 +47,6 @@ def configure_provider(
         client_secret_enc=None,
         scopes="openid profile email",
         dashboard_origin=dashboard_origin,
-    )
-
-
-@pytest.mark.parametrize("origin", [None, "https://dashboard.example"])
-def test_frontend_origin_preserves_runtime_deployment_prefix(
-    service: SsoService, origin: str | None
-) -> None:
-    configure_provider(service, dashboard_origin=origin)
-    assert service.login_error_frontend("https://api.example/apps/octop") == (
-        (origin or "https://api.example") + "/apps/octop"
     )
 
 
@@ -242,6 +232,8 @@ async def test_callback_maps_denied_bad_state_and_invalid_token(service: SsoServ
 
 @pytest.mark.asyncio
 async def test_callback_exchanges_code_and_attaches_login_code(service: SsoService) -> None:
+    initialize = AsyncMock()
+    service._on_oidc_login = initialize
     service._services.user_repo.create(username="admin", role="admin")
     configure_provider(service)
     requests: list[httpx.Request] = []
@@ -292,6 +284,7 @@ async def test_callback_exchanges_code_and_attaches_login_code(service: SsoServi
     )
     assert user_id is not None
     assert service._services.user_repo.get(user_id["user_id"]).username == "member"
+    initialize.assert_awaited_once_with(user_id["user_id"])
 
 
 @pytest.mark.asyncio
@@ -411,6 +404,8 @@ def test_start_login_for_kind_oidc_keeps_oidc_redirect(service: SsoService) -> N
 
 @pytest.mark.asyncio
 async def test_callback_bind_links_current_user(service: SsoService) -> None:
+    initialize = AsyncMock()
+    service._on_oidc_login = initialize
     user_id = service._services.user_repo.create(username="admin", role="admin")
     provider = configure_provider(service)
     add_login_state(service, provider.id, user_id=user_id)
@@ -430,6 +425,25 @@ async def test_callback_bind_links_current_user(service: SsoService) -> None:
     assert row is not None
     assert row.sso_subject == "bound-sub"
     assert row.sso_provider_id == provider.id
+    initialize.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_callback_initialization_failure_does_not_issue_login_code(
+    service: SsoService,
+) -> None:
+    provider = configure_provider(service)
+    add_login_state(service, provider.id)
+    service._on_oidc_login = AsyncMock(side_effect=RuntimeError("bootstrap failed"))
+    with patch.object(service, "_exchange_claims", return_value={"sub": "new-sub"}):
+        result = await service.handle_callback(
+            code="code",
+            state="valid-state",
+            error=None,
+            public_base="https://octop.example",
+        )
+    assert result.url == "https://octop.example/login?oidc_error=generic"
+    service._on_oidc_login.assert_awaited_once()
 
 
 @pytest.mark.asyncio

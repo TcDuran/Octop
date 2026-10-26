@@ -1,0 +1,139 @@
+{
+  "run_id": "2a408b8e",
+  "databases": [
+    "octop_verify_20261022_2a408b8e",
+    "octop_verify_restore_20261022_2a408b8e"
+  ],
+  "results": [
+    {
+      "name": "create_isolated_database",
+      "status": "passed",
+      "evidence": {
+        "database": "octop_verify_20261022_2a408b8e",
+        "oid": 88466,
+        "owner": "plat"
+      }
+    },
+    {
+      "name": "create_isolated_database",
+      "status": "passed",
+      "evidence": {
+        "database": "octop_verify_restore_20261022_2a408b8e",
+        "oid": 88467,
+        "owner": "plat"
+      }
+    },
+    {
+      "name": "isolated_database_identity",
+      "status": "passed",
+      "evidence": [
+        "octop_verify_20261022_2a408b8e",
+        "plat",
+        "(openGauss 6.0.5 build 5ba692ab) compiled at 2026-05-07 12:36:04 commit 0 last mr 9228  on x86_64-unknown-linux-gnu, compiled by g++ (GCC) 10.3.0, 64-bit"
+      ]
+    },
+    {
+      "name": "isolated_database_settings",
+      "status": "passed",
+      "evidence": [
+        [
+          "enable_default_ustore_table",
+          "off",
+          null
+        ],
+        [
+          "lockwait_timeout",
+          "1200000",
+          "ms"
+        ],
+        [
+          "sql_compatibility",
+          "PG",
+          null
+        ]
+      ]
+    },
+    {
+      "name": "native_bytea_array_aggregation",
+      "status": "failed",
+      "evidence": "could not find range type for data type bytea[]",
+      "scope": "native",
+      "sqlstate": "42704",
+      "error_type": "UndefinedObject",
+      "seconds": 0.067
+    },
+    {
+      "name": "json_base64_aggregation_alternative",
+      "status": "passed",
+      "evidence": [
+        [
+          [
+            [
+              "Y2hhbm5lbA==",
+              "cGF5bG9hZA=="
+            ]
+          ]
+        ]
+      ],
+      "scope": "prototype",
+      "seconds": 0.077
+    },
+    {
+      "name": "unmodified_checkpoint_migrations",
+      "status": "failed",
+      "evidence": "syntax error at or near \"NOT\"",
+      "scope": "application",
+      "sqlstate": "42601",
+      "error_type": "SyntaxError",
+      "seconds": 3.49
+    },
+    {
+      "name": "prototype_checkpoint_graph_restart_idempotency",
+      "status": "passed",
+      "evidence": {
+        "real_graph_save": true,
+        "new_connection_restore": true,
+        "thread_namespace_isolation": true,
+        "duplicate_write_count": 1
+      },
+      "scope": "prototype",
+      "seconds": 6.606
+    },
+    {
+      "name": "prototype_checkpoint_interrupt_resume",
+      "status": "passed",
+      "evidence": {
+        "synthetic_human_interrupt": true,
+        "new_connection_resume": true,
+        "no_llm_calls": true
+      },
+      "scope": "prototype",
+      "seconds": 3.068
+    },
+    {
+      "name": "cleanup_database",
+      "status": "passed",
+      "evidence": {
+        "database": "octop_verify_restore_20261022_2a408b8e",
+        "oid": 88467
+      }
+    },
+    {
+      "name": "cleanup_database",
+      "status": "passed",
+      "evidence": {
+        "database": "octop_verify_20261022_2a408b8e",
+        "oid": 88466
+      }
+    },
+    {
+      "name": "cleanup_verification",
+      "status": "passed",
+      "evidence": {
+        "database_catalog_unchanged": true,
+        "test_databases_absent": true,
+        "management_read_only": "on"
+      }
+    }
+  ]
+}

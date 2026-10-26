@@ -13,7 +13,14 @@ except ImportError:  # pragma: no cover - optional PostgreSQL driver
     pg_errors = None  # type: ignore[assignment]
 
 from octop.infra.db.pool import DatabasePool
-from octop.infra.db.repos._base import DbRow, bool_int, insert_returning_id, map_rows, now_ts
+from octop.infra.db.repos._base import (
+    DbRow,
+    bool_int,
+    insert_returning_id,
+    map_rows,
+    now_ts,
+    opengauss_key_lock,
+)
 
 
 def _is_unique_violation(exc: BaseException) -> bool:
@@ -166,6 +173,8 @@ class SsoRepo:
         ts = now_ts()
         extra_json = _extra_json(extra)
         with self._db.transaction() as conn:
+            if self._db.dialect == "opengauss":
+                opengauss_key_lock(conn, "sso_providers", (kind,))
             existing = conn.execute(
                 "SELECT * FROM sso_providers WHERE kind = ?", (kind,)
             ).fetchone()

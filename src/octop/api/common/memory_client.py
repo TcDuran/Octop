@@ -15,6 +15,7 @@ from typing import Any
 
 from octop.api.common.agent import require_agent_owner_row
 from octop.infra.agents.memory.backend import open_memory_kwargs
+from octop.infra.agents.memory.thread_cleanup import close_memory
 from octop.infra.agents.workspace.dir import host_system_dir
 from octop.infra.errors import ErrorCode, OctopError
 
@@ -87,17 +88,24 @@ class _MemoryCache:
             )
             bridge = Bridge(memory)
             self._entries[agent_id] = (memory, bridge, fingerprint)
+            if cached is not None:
+                close_memory(cached[0])
             while len(self._entries) > self._max_size:
-                _, evicted = self._entries.popitem(last=False)
-                logger.debug("memory dashboard cache evicted agent_id=%s", evicted)
+                evicted_id, evicted = self._entries.popitem(last=False)
+                close_memory(evicted[0])
+                logger.debug("memory dashboard cache evicted agent_id=%s", evicted_id)
             return memory, bridge
 
     def invalidate(self, agent_id: str | None = None) -> None:
         with self._lock:
             if agent_id is None:
+                for memory, _bridge, _fingerprint in self._entries.values():
+                    close_memory(memory)
                 self._entries.clear()
             else:
-                self._entries.pop(agent_id, None)
+                cached = self._entries.pop(agent_id, None)
+                if cached is not None:
+                    close_memory(cached[0])
 
 
 _CACHE = _MemoryCache()

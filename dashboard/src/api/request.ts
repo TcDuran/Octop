@@ -1,5 +1,4 @@
 import { getApiUrl } from "./config";
-import { withBasePath, withoutBasePath } from "../utils/deploymentPath";
 import i18n from "../i18n";
 import { markNavigatingAway } from "../utils/reloadOnStaleChunk";
 
@@ -130,7 +129,7 @@ function handleSetupRequired(): void {
   if (_redirectingToSetup) return;
   // Already on a public bootstrap route — a 503 from a background prefetch
   // must not reload the page or we loop forever.
-  const path = withoutBasePath(window.location.pathname);
+  const path = window.location.pathname;
   if (
     path.startsWith("/setup") ||
     path.startsWith("/login") ||
@@ -140,7 +139,7 @@ function handleSetupRequired(): void {
   }
   _redirectingToSetup = true;
   // Full reload drops any in-flight React state.
-  window.location.replace(withBasePath("/setup"));
+  window.location.replace("/setup");
 }
 
 /** Wizard endpoints stay reachable while lockdown is active. */
@@ -322,7 +321,7 @@ const SESSION_UNAUTHORIZED_CODES = new Set(["AUTH_FAILED", "TOKEN_EXPIRED"]);
  */
 function handleUnauthorized(): void {
   if (_redirectingToLogin) return;
-  const path = withoutBasePath(window.location.pathname);
+  const path = window.location.pathname;
   if (
     path.startsWith("/setup") ||
     path.startsWith("/login") ||
@@ -337,7 +336,7 @@ function handleUnauthorized(): void {
   if (takenOver) return;
 
   markNavigatingAway();
-  window.location.replace(withBasePath("/login"));
+  window.location.replace("/login");
 }
 
 /**

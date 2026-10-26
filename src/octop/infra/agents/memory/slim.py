@@ -53,7 +53,7 @@ class MemorySlimCoordinator:
         kind = self._memory_kind(agent_id, locale)
         memory = self._agent_manager.get_agent(agent_id)._memory_runtime.memory
         assert memory is not None  # Validated by _memory_kind without yielding.
-        if kind == "postgres":
+        if kind in {"postgres", "opengauss"}:
             from octop.infra.agents.memory.thread_cleanup import memory_namespace
 
             namespace = memory.backend._ns
@@ -256,9 +256,15 @@ class MemorySlimCoordinator:
             raise ValueError(tr("memory_slim.memory_disabled", locale))
         if not isinstance(memory.backend, SqliteMemoryBackend):
             backend = type(memory.backend).__name__
-            if backend == "PostgresMemoryBackend":
+            if backend in {"PostgresMemoryBackend", "OpenGaussMemoryBackend"}:
                 raise ValueError(
-                    tr("memory_slim.postgres_unsupported", locale, backend="PostgreSQL")
+                    tr(
+                        "memory_slim.postgres_unsupported",
+                        locale,
+                        backend="openGauss"
+                        if backend == "OpenGaussMemoryBackend"
+                        else "PostgreSQL",
+                    )
                 )
             raise ValueError(tr("memory_slim.backend_unsupported", locale, backend=backend))
         saver = getattr(memory, "_checkpointer", None)
@@ -279,8 +285,8 @@ class MemorySlimCoordinator:
         backend = type(getattr(memory, "backend", None)).__name__
         if backend == "SqliteMemoryBackend":
             return "sqlite"
-        if backend == "PostgresMemoryBackend":
-            return "postgres"
+        if backend in {"PostgresMemoryBackend", "OpenGaussMemoryBackend"}:
+            return "opengauss" if backend == "OpenGaussMemoryBackend" else "postgres"
         raise ValueError(tr("memory_slim.backend_unsupported", locale, backend=backend))
 
     def _check_ready(self, locale: str) -> None:
@@ -442,7 +448,7 @@ class MemorySlimCoordinator:
                     remove_directories=self._remove_directories,
                 )
                 self._update({"phase": "sweeping", "sweep": sweep})
-            if self._memory_kind(agent_id, locale) == "postgres":
+            if self._memory_kind(agent_id, locale) in {"postgres", "opengauss"}:
                 if current_only:
                     await self._run_postgres(_memory, locale)
                 else:

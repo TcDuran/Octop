@@ -90,6 +90,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 ARG PIP_INDEX_URL=
 ARG PIP_TRUSTED_HOST=
 ARG APT_MIRROR=
+ARG INSTALL_LOCAL_EMBEDDING=true
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
@@ -113,13 +114,19 @@ WORKDIR /app
 
 # 先安装锁定依赖，仅改源码时可复用此层缓存
 COPY pyproject.toml uv.lock README.md LICENSE ./
+COPY vendor/octop-memory/ vendor/octop-memory/
 RUN --mount=type=cache,target=/root/.cache/uv \
     if [ -n "$PIP_INDEX_URL" ]; then \
         export UV_INDEX_URL="$PIP_INDEX_URL"; \
         if [ -n "$PIP_TRUSTED_HOST" ]; then export UV_INSECURE_HOST="$PIP_TRUSTED_HOST"; fi; \
     fi \
-    && uv sync --frozen --no-install-project --no-dev \
-        --extra browser --extra local-embedding --extra knowledge-ocr
+    && if [ "$INSTALL_LOCAL_EMBEDDING" = "true" ]; then \
+        uv sync --frozen --no-install-project --no-dev \
+            --extra browser --extra local-embedding --extra knowledge-ocr; \
+    else \
+        uv sync --frozen --no-install-project --no-dev \
+            --extra browser --extra knowledge-ocr; \
+    fi
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PLAYWRIGHT_BROWSERS_PATH=/root/.cache/ms-playwright
@@ -136,25 +143,50 @@ RUN --mount=type=cache,target=/root/.cache/uv \
         export UV_INDEX_URL="$PIP_INDEX_URL"; \
         if [ -n "$PIP_TRUSTED_HOST" ]; then export UV_INSECURE_HOST="$PIP_TRUSTED_HOST"; fi; \
     fi \
-    && uv sync --frozen --no-dev \
-        --extra browser --extra local-embedding --extra knowledge-ocr \
-    && .venv/bin/python -c "import cv2, fastembed, huggingface_hub, rapidocr, onnxruntime, pymupdf" \
+    && if [ "$INSTALL_LOCAL_EMBEDDING" = "true" ]; then \
+        uv sync --frozen --no-dev \
+            --extra browser --extra local-embedding --extra knowledge-ocr; \
+        .venv/bin/python -c "import cv2, fastembed, huggingface_hub, rapidocr, onnxruntime, pymupdf"; \
+    else \
+        uv sync --frozen --no-dev \
+            --extra browser --extra knowledge-ocr; \
+        .venv/bin/python -c "import cv2, rapidocr, onnxruntime, pymupdf"; \
+    fi \
     && apt-get update && apt-get install -y --no-install-recommends fonts-noto-cjk \
     && apt-get purge -y --auto-remove build-essential \
     && rm -rf /var/lib/apt/lists/* /tmp/*
 
-# 修复 octop-harness 的 MCP 工具参数类型降级(object/array 被声明为 str,
-# 导致嵌套参数被模型序列化成字符串、服务端校验拒绝)。构建期对安装的
-# octop_harness 包打幂等补丁,锚点失效时构建失败以提示复核。
+# octop-harness 1.0.5 已保留 enum/array 类型；构建期补丁只补齐
+# LangChain 重建时丢失的嵌套 object properties，锚点失效时构建失败提示复核。
 COPY docker/patches/patch_harness_mcp.py /tmp/patch_harness_mcp.py
-RUN python /tmp/patch_harness_mcp.py && rm -f /tmp/patch_harness_mcp.py
+COPY docker/patches/patch_deepagents_prompt_caching.py /tmp/patch_deepagents_prompt_caching.py
+RUN python /tmp/patch_harness_mcp.py \
+    && python /tmp/patch_deepagents_prompt_caching.py \
+    && rm -f /tmp/patch_harness_mcp.py /tmp/patch_deepagents_prompt_caching.py
 
 RUN mkdir -p /data/.octop
 
 EXPOSE 8088
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
-    CMD ["python", "-c", "from octop.config import load_config; from octop.infra.utils.paths import PathLayout; from urllib.request import urlopen; from octop.infra.utils.env_file import apply_env_file, env_file_path; p=PathLayout.from_env(); apply_env_file(env_file_path(p.root)); c=load_config(p.config); urlopen(f'http://127.0.0.1:{c.port}{c.base_path}/api/health', timeout=5).read()"]
+    CMD ["sh", "-c", "curl -f http://localhost:${OCTOP_PORT:-8088}/api/health || exit 1"]
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD []
+
+# The openGauss compose selects this target; the default image stays unchanged.
+FROM 10.24.1.80:2443/library/opengauss:6.0.5 AS opengauss-clients
+
+FROM runtime AS opengauss-runtime
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libreadline8t64 libcrypt1 libkeyutils1 libzstd1 \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=opengauss-clients /usr/local/opengauss/lib/ /opt/opengauss/lib/
+COPY --from=opengauss-clients /usr/local/opengauss/bin/gs_dump /usr/local/opengauss/bin/gs_restore /opt/opengauss/bin/
+COPY docker/opengauss/gs-client /usr/local/bin/gs-client
+RUN chmod +x /usr/local/bin/gs-client \
+    && ln -s gs-client /usr/local/bin/gs_dump \
+    && ln -s gs-client /usr/local/bin/gs_restore \
+    && gs_dump --version && gs_restore --version
+
+FROM runtime AS default

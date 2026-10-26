@@ -10,7 +10,7 @@ from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from functools import partial
 from typing import Any
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlencode
 
 import httpx
 import jwt
@@ -53,10 +53,12 @@ class SsoService:
         user_manager: UserManager,
         *,
         on_plat_login: Callable[[int], Awaitable[None]] | None = None,
+        on_oidc_login: Callable[[int], Awaitable[None]] | None = None,
     ) -> None:
         self._services = services
         self._user_manager = user_manager
         self._on_plat_login = on_plat_login
+        self._on_oidc_login = on_oidc_login
         self._discovery = DiscoveryCache()
         self._adapters: dict[str, IdentityProvider] = build_adapters(self)
 
@@ -396,6 +398,17 @@ class SsoService:
                 logger.error("PLAT credential save/reload failed user_id=%s", user.id)
                 return self._error_redirect(frontend, "generic")
 
+        if (
+            provider.kind == "oidc"
+            and login_state.user_id is None
+            and self._on_oidc_login is not None
+        ):
+            try:
+                await self._on_oidc_login(user.id)
+            except Exception:
+                logger.error("OIDC assistant initialization failed user_id=%s", user.id)
+                return self._error_redirect(frontend, "generic")
+
         login_code = secrets.token_urlsafe(32)
         self._services.sso_repo.attach_login_code(
             state,
@@ -446,15 +459,14 @@ class SsoService:
         return provider
 
     def _frontend_base(self, public_base: str, *, provider: SsoProviderRow | None = None) -> str:
-        prefix = urlparse(public_base).path.rstrip("/")
         if provider is not None and provider.dashboard_origin:
-            return provider.dashboard_origin.rstrip("/") + prefix
+            return provider.dashboard_origin.rstrip("/")
         oidc = self._services.sso_repo.get_by_kind("oidc")
         if oidc is not None and oidc.dashboard_origin:
-            return oidc.dashboard_origin.rstrip("/") + prefix
+            return oidc.dashboard_origin.rstrip("/")
         for row in self._services.sso_repo.list():
             if row.enabled and row.dashboard_origin:
-                return row.dashboard_origin.rstrip("/") + prefix
+                return row.dashboard_origin.rstrip("/")
         return public_base.rstrip("/")
 
     def login_error_frontend(self, public_base: str) -> str:
