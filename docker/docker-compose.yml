@@ -35,12 +35,13 @@ services:
     ports:
       - "${OCTOP_PORT:-8088}:${OCTOP_PORT:-8088}"
     volumes:
-      - ${OCTOP_DATA:-~/.octop}:/data/.octop
+      - ${OCTOP_DATA:-../data/pg}:/data/.octop
     environment:
       - HOME=/data
       - OCTOP_BIND_HOST=0.0.0.0
       - OCTOP_PORT=${OCTOP_PORT:-8088}
       - OCTOP_LOG_LEVEL=${OCTOP_LOG_LEVEL:-info}
+      - OCTOP_PUBLIC_BASE_URL=${OCTOP_PUBLIC_BASE_URL:-}
       - OCTOP_DEFAULT_PASSWORD=${OCTOP_DEFAULT_PASSWORD:-}
       - OCTOP_ADMIN_USERNAME=${OCTOP_ADMIN_USERNAME:-admin}
       - OCTOP_ADMIN_DISPLAY_NAME=${OCTOP_ADMIN_DISPLAY_NAME:-Admin}

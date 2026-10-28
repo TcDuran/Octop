@@ -135,7 +135,7 @@ function ChatPageInner() {
   });
   const isMobile = useIsMobile();
   const user = useCurrentUser();
-  const { layoutMode } = useLayoutMode();
+  const { layoutMode, isPlatEmbedded } = useLayoutMode();
   const isMinimalLayout = layoutMode === "minimal";
   const canTerminal = userCan(user, "terminal");
   const canConfigureModels = navAllowed(user, "models");
@@ -1415,7 +1415,7 @@ function ChatPageInner() {
                     <RemoteExpertHint agent={activeAgent} />
                   </div>
                 )}
-                {resolvedAgentId && !sharedExpertViewer && (
+                {resolvedAgentId && !sharedExpertViewer && !isPlatEmbedded && (
                   <div className={styles.mobileToolbarRight}>
                     <button
                       className={styles.menuBtn}
@@ -1532,7 +1532,9 @@ function ChatPageInner() {
                   welcomeSuffix={welcomeSuffix}
                   quickCards={expertQuickCards}
                   onPromptClick={handlePromptClick}
-                  hideMascot={isStreaming || liveSpeakers.length > 0}
+                  hideMascot={
+                    isPlatEmbedded || isStreaming || liveSpeakers.length > 0
+                  }
                   isTeam={isTeamChat}
                 />
               ) : (
@@ -1588,47 +1590,49 @@ function ChatPageInner() {
                 <div className={styles.chatFloatActions}>
                   {/* PWA install first when available — same column as browser / experts. */}
                   <PwaInstallPrompt appearance="chatFloat" />
-                  {resolvedAgentId && !sharedExpertViewer && (
-                    <>
-                      <Tooltip
-                        title={profileOpenLabel}
-                        mouseEnterDelay={0.35}
-                        placement="left"
-                      >
-                        <span className={styles.chatFloatBtnWrap}>
-                          <button
-                            type="button"
-                            className={styles.agentProfileBtn}
-                            onClick={() => setAgentProfileOpen(true)}
-                            aria-label={profileOpenLabel}
-                          >
-                            <ProfileIcon size={20} strokeWidth={2.1} />
-                          </button>
-                        </span>
-                      </Tooltip>
-                      <Tooltip
-                        title={
-                          agentChatReady
-                            ? t("chat.openWorkspace", "工作区")
-                            : t("workspace.requiresRunning")
-                        }
-                        mouseEnterDelay={0.35}
-                        placement="left"
-                      >
-                        <span className={styles.chatFloatBtnWrap}>
-                          <button
-                            type="button"
-                            className={styles.chatFloatBtn}
-                            disabled={!agentChatReady}
-                            onClick={toggleWorkspacePanel}
-                            aria-label={t("chat.openWorkspace", "工作区")}
-                          >
-                            <FolderOpen size={20} strokeWidth={2.1} />
-                          </button>
-                        </span>
-                      </Tooltip>
-                    </>
-                  )}
+                  {resolvedAgentId &&
+                    !sharedExpertViewer &&
+                    !isPlatEmbedded && (
+                      <>
+                        <Tooltip
+                          title={profileOpenLabel}
+                          mouseEnterDelay={0.35}
+                          placement="left"
+                        >
+                          <span className={styles.chatFloatBtnWrap}>
+                            <button
+                              type="button"
+                              className={styles.agentProfileBtn}
+                              onClick={() => setAgentProfileOpen(true)}
+                              aria-label={profileOpenLabel}
+                            >
+                              <ProfileIcon size={20} strokeWidth={2.1} />
+                            </button>
+                          </span>
+                        </Tooltip>
+                        <Tooltip
+                          title={
+                            agentChatReady
+                              ? t("chat.openWorkspace", "工作区")
+                              : t("workspace.requiresRunning")
+                          }
+                          mouseEnterDelay={0.35}
+                          placement="left"
+                        >
+                          <span className={styles.chatFloatBtnWrap}>
+                            <button
+                              type="button"
+                              className={styles.chatFloatBtn}
+                              disabled={!agentChatReady}
+                              onClick={toggleWorkspacePanel}
+                              aria-label={t("chat.openWorkspace", "工作区")}
+                            >
+                              <FolderOpen size={20} strokeWidth={2.1} />
+                            </button>
+                          </span>
+                        </Tooltip>
+                      </>
+                    )}
                   {!sharedExpertViewer && panelFilePaths.length > 0 && (
                     <Tooltip
                       title={t("chat.modifiedFiles", {
@@ -1706,51 +1710,53 @@ function ChatPageInner() {
                       </span>
                     </Tooltip>
                   )}
-                  <Tooltip
-                    title={
-                      browserSessionId
-                        ? t("browserWorkspace.browserStatusActive", {
-                            owner:
-                              browserControlOwner === "agent"
-                                ? t("browserWorkspace.agentControl")
-                                : t("browserWorkspace.userTakeover"),
-                          })
-                        : t("browserWorkspace.browserStatusIdle")
-                    }
-                    mouseEnterDelay={0.35}
-                    placement="left"
-                  >
-                    <span className={styles.chatFloatBtnWrap}>
-                      <button
-                        type="button"
-                        className={[
-                          styles.browserStatusBtn,
-                          browserSessionId ? styles.browserStatusActive : "",
-                          browserSessionId &&
-                          (browserSessionState === "awaiting_user_auth" ||
-                            browserSessionState === "authenticating")
-                            ? styles.browserStatusAuth
-                            : "",
-                          browserSessionId && browserControlOwner === "user"
-                            ? styles.browserStatusTakeover
-                            : "",
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                        onClick={() => void handleToggleBrowserPanel()}
-                        aria-label={t("chat.openBrowser")}
-                      >
-                        <Globe size={20} strokeWidth={2.1} />
-                        {browserSessionId && (
-                          <span
-                            className={`${styles.browserStatusDot} ${
-                              styles[`browserStatus_${browserControlOwner}`]
-                            }`}
-                          />
-                        )}
-                      </button>
-                    </span>
-                  </Tooltip>
+                  {!isPlatEmbedded && (
+                    <Tooltip
+                      title={
+                        browserSessionId
+                          ? t("browserWorkspace.browserStatusActive", {
+                              owner:
+                                browserControlOwner === "agent"
+                                  ? t("browserWorkspace.agentControl")
+                                  : t("browserWorkspace.userTakeover"),
+                            })
+                          : t("browserWorkspace.browserStatusIdle")
+                      }
+                      mouseEnterDelay={0.35}
+                      placement="left"
+                    >
+                      <span className={styles.chatFloatBtnWrap}>
+                        <button
+                          type="button"
+                          className={[
+                            styles.browserStatusBtn,
+                            browserSessionId ? styles.browserStatusActive : "",
+                            browserSessionId &&
+                            (browserSessionState === "awaiting_user_auth" ||
+                              browserSessionState === "authenticating")
+                              ? styles.browserStatusAuth
+                              : "",
+                            browserSessionId && browserControlOwner === "user"
+                              ? styles.browserStatusTakeover
+                              : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                          onClick={() => void handleToggleBrowserPanel()}
+                          aria-label={t("chat.openBrowser")}
+                        >
+                          <Globe size={20} strokeWidth={2.1} />
+                          {browserSessionId && (
+                            <span
+                              className={`${styles.browserStatusDot} ${
+                                styles[`browserStatus_${browserControlOwner}`]
+                              }`}
+                            />
+                          )}
+                        </button>
+                      </span>
+                    </Tooltip>
+                  )}
                 </div>
               )}
 

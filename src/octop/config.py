@@ -8,7 +8,7 @@ import os
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from typing import Any
-from urllib.parse import quote_plus, urlparse
+from urllib.parse import quote_plus, urlparse, urlsplit, urlunsplit
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +147,7 @@ class OctopConfig:
     capabilities: CapabilitiesConfig = field(default_factory=CapabilitiesConfig)
     max_upload_mb: int = DEFAULT_MAX_UPLOAD_MB
     browser_idle_timeout_minutes: int = DEFAULT_BROWSER_IDLE_TIMEOUT_MINUTES
+    public_base_url: str = ""
 
     @property
     def max_upload_bytes(self) -> int:
@@ -294,6 +295,32 @@ def _coerce_bool(name: str, value: str, default: bool) -> bool:
     # sensitive by CodeQL (py/clear-text-logging-sensitive-data).
     logger.warning("env %s is not bool; using %s", name, default)
     return default
+
+
+def _parse_public_base_url(raw: object) -> str:
+    if not isinstance(raw, str):
+        raise ValueError("public_base_url must be a string")
+    value = raw.strip()
+    if not value:
+        return ""
+    if any(char.isspace() for char in value) or "?" in value or "#" in value:
+        raise ValueError("public_base_url must not contain whitespace, query, or fragment")
+    try:
+        parsed = urlsplit(value)
+        hostname = parsed.hostname
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError("public_base_url must be a valid HTTP(S) URL") from exc
+    if parsed.scheme.lower() not in {"http", "https"}:
+        raise ValueError("public_base_url scheme must be http or https")
+    if not parsed.netloc or not hostname:
+        raise ValueError("public_base_url must include a host")
+    if port == 0:
+        raise ValueError("public_base_url port must be greater than zero")
+    if parsed.username is not None or parsed.password is not None or "@" in parsed.netloc:
+        raise ValueError("public_base_url must not include credentials")
+    path = parsed.path.rstrip("/")
+    return urlunsplit((parsed.scheme.lower(), parsed.netloc, path, "", ""))
 
 
 def _parse_database_url(url: str) -> dict[str, Any]:
@@ -451,6 +478,9 @@ def load_config(path: Path) -> OctopConfig:
         database_in_file = False
 
     merged = {**file_defaults, **raw}
+    if v := os.environ.get("OCTOP_PUBLIC_BASE_URL"):
+        merged["public_base_url"] = v
+    merged["public_base_url"] = _parse_public_base_url(merged.get("public_base_url", ""))
     # Legacy key: prefer default_timezone when both are present in the file.
     if "default_timezone" not in raw and "cron_timezone" in raw:
         merged["default_timezone"] = raw["cron_timezone"]
@@ -608,6 +638,7 @@ def load_config(path: Path) -> OctopConfig:
         login_max_attempts=int(merged.get("login_max_attempts", 5)),
         login_lockout_seconds=int(merged.get("login_lockout_seconds", 900)),
         cors_origins=list(merged.get("cors_origins") or []),
+        public_base_url=merged["public_base_url"],
         default_timezone=str(merged.get("default_timezone") or "Asia/Shanghai"),
         enable_dashboard=bool(merged["enable_dashboard"]),
         enable_api_docs=bool(merged["enable_api_docs"]),

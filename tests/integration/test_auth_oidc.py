@@ -8,6 +8,7 @@ import pytest
 
 from octop.api.routers.auth_oidc import _bad_request
 from octop.infra.auth.sso.service import RedirectResult, SsoService
+from tests.support.app import octop_client
 from tests.support.auth import bearer, bootstrap_admin, login
 
 
@@ -165,3 +166,54 @@ def test_oidc_bad_request_keeps_detail_when_localized() -> None:
     assert error.to_envelope(locale="zh")["error"]["message"] == (
         "OIDC 请求无效：PLAT embedded login is not allowed for this origin"
     )
+
+
+async def test_public_base_url_reaches_oidc_and_invite_urls(tmp_octop_home, monkeypatch) -> None:
+    public_base = "http://221.232.69.57:7321/octop"
+    monkeypatch.setenv("OCTOP_PUBLIC_BASE_URL", public_base)
+
+    async with octop_client(tmp_octop_home, patch_llm=False) as (client, server):
+        assert server.services.config.public_base_url == public_base
+        await bootstrap_admin(client, tmp_octop_home)
+        headers = bearer(await login(client))
+
+        oidc = await client.get("/api/auth/oidc/config", headers=headers)
+        assert oidc.status_code == 200
+        assert oidc.json()["redirect_uri"] == (f"{public_base}/api/auth/oidc/callback")
+
+        observed_public_bases: list[str] = []
+
+        def start_login(
+            self: SsoService, *, redirect_after: str | None, public_base: str
+        ) -> dict[str, str]:
+            observed_public_bases.append(public_base)
+            return {
+                "authorization_url": "https://idp.example/authorize",
+                "state": "configured-state",
+            }
+
+        monkeypatch.setattr(SsoService, "start_login", start_login)
+        started = await client.post("/api/auth/oidc/start", json={"redirect_after": "/chat"})
+        assert started.status_code == 200
+        assert "Path=/octop/api/auth" in started.headers["set-cookie"]
+        assert observed_public_bases == [public_base]
+
+        updated = await client.put(
+            "/api/auth/oidc/config",
+            headers=headers,
+            json={"dashboard_origin": "https://dashboard.example"},
+        )
+        assert updated.status_code == 200
+        callback = await client.get(
+            "/api/auth/oidc/callback",
+            params={"state": "configured-state", "error": "access_denied"},
+            headers={"cookie": "octop_sso_state=configured-state"},
+        )
+        assert "Path=/octop/api/auth" in callback.headers["set-cookie"]
+        assert callback.headers["location"] == (
+            "https://dashboard.example/octop/login?oidc_error=denied"
+        )
+
+        invite = await client.post("/api/users/invites", headers=headers, json={})
+        assert invite.status_code == 201
+        assert invite.json()["invite_url"].startswith(f"{public_base}/invite?code=")

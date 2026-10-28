@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
 from octop.api.common.client_ip import resolve_client_ip
+from octop.api.common.public_base import resolve_public_base
 from octop.api.deps import get_server, require_permission, sign_token
 from octop.api.routers.auth import _user_json
 from octop.infra.errors import ErrorCode, OctopError
@@ -37,7 +38,7 @@ def _client_id(request: Request) -> str:
 
 
 def _public_base(request: Request) -> str:
-    return str(request.base_url).rstrip("/")
+    return resolve_public_base(request)
 
 
 def _with_url(payload: dict[str, Any], *, base_url: str) -> dict[str, Any]:

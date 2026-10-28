@@ -19,6 +19,12 @@ def resolve_public_base(request: Request) -> str:
     behind a reverse proxy). Prefer deploying Octop behind a trusted proxy and
     keeping the dashboard same-origin with the API for OIDC cookies.
     """
+    app = request.scope.get("app")
+    config = getattr(getattr(app, "state", None), "octop_config", None)
+    configured = getattr(config, "public_base_url", "")
+    if configured:
+        return configured
+
     forwarded_proto = _first_header_value(request.headers.get("x-forwarded-proto"))
     forwarded_host = _first_header_value(request.headers.get("x-forwarded-host"))
     if forwarded_proto:

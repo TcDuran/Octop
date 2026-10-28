@@ -1,5 +1,5 @@
 # =============================================================================
-# Octop ODC production Compose for 221.232.69.57
+# Octop ODC production Compose for 10.51.49.7
 #
 # Deploy as /apps/octop/docker-compose-odc-postgres.yml with /apps/octop/.env:
 #   OCTOP_IMAGE=octop:<immutable-release-tag>
@@ -8,6 +8,8 @@
 # Leave OCTOP_DEFAULT_PASSWORD unset to use the first-run setup wizard.
 # Build the image for this host with INSTALL_LOCAL_EMBEDDING=false; its CPU does
 # not support the x86-64-v2 baseline required by the current local-embedding stack.
+# Remote third-party embedding remains available through the provider configuration;
+# disabling this optional extra does not change the SQLite knowledge-base sidecar.
 #
 # The existing PostgreSQL container is reached through its external Docker
 # network. Create the dedicated role/database before starting Octop; this file
@@ -17,6 +19,11 @@
 #   cd /apps/octop
 #   docker compose -f docker-compose-odc-postgres.yml config
 #   docker compose -f docker-compose-odc-postgres.yml up -d
+# Before the first start, create a dedicated PostgreSQL database/role and set the
+# same values in .env. Never point this file at the shared plat database.
+# Before an update, back up the PostgreSQL database and /apps/octop/data, then
+# retain the previous immutable image tag for rollback. Octop applies numbered
+# migrations during startup; verify /api/health after the container is recreated.
 #
 # Build the frontend with VITE_BASE_PATH=/octop/. Nginx strips the prefix:
 #   location = /octop { return 308 /octop/; }
@@ -56,6 +63,7 @@ services:
       OCTOP_BIND_HOST: 0.0.0.0
       OCTOP_PORT: "8088"
       OCTOP_LOG_LEVEL: ${OCTOP_LOG_LEVEL:-info}
+      OCTOP_PUBLIC_BASE_URL: ${OCTOP_PUBLIC_BASE_URL:-}
       OCTOP_DEFAULT_PASSWORD: ${OCTOP_DEFAULT_PASSWORD:-}
       OCTOP_DATABASE_DRIVER: postgresql
       OCTOP_DATABASE_HOST: ${OCTOP_DATABASE_HOST:-postgres}

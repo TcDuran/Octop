@@ -115,6 +115,7 @@ def build_app(server: OctopServer) -> FastAPI:
     )
     configure_openapi(app)
     app.state.octop_server = server
+    app.state.octop_config = cfg
     _install_exception_handlers(app)
 
     if cfg and cfg.cors_origins:

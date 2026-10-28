@@ -1,16 +1,19 @@
 # Local PLAT integration only. Keep the existing loopback issuer reachable from
 # Octop's container without changing its OIDC code or existing identity bindings.
-# Start after Octop: docker compose -f docker/docker-compose.oidc-local.yml up -d
+# Start with the active Octop compose file so the proxy shares its network namespace.
 # PLAT must listen on the host at port 8080.
-# If Octop is recreated, recreate this container too so it joins the new network:
-# docker compose -f docker/docker-compose.oidc-local.yml up -d --force-recreate
+# For PostgreSQL:
+# docker compose -f docker/docker-compose.yml -f docker/docker-compose.oidc-local.yml up -d
+# For openGauss, include docker-compose.opengauss-local.yml instead.
 # Production should use a provider hostname reachable from browser and container.
 services:
   plat-oidc-loopback:
     image: octop:latest
     container_name: octop-plat-oidc-loopback
     restart: unless-stopped
-    network_mode: container:octop
+    depends_on:
+      - octop
+    network_mode: service:octop
     entrypoint: ["python", "-u", "-c"]
     command:
       - |

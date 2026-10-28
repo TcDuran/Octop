@@ -1,0 +1,90 @@
+# AJ Octop 本次部署操作记录
+
+本页是本次生产实施的时间线和结果记录。执行一项操作后立即填写，不预填为成功。口令、令牌、完整 `.env`、带凭据的连接串及敏感命令输出不得写入此页。
+
+## 变更边界
+
+- 目标主机：`10.51.49.8`，Kylin Linux Advanced Server V10，`x86_64`。
+- 公开入口候选：`http://211.137.76.3:8081/octop`；TLS 终止位置待确认。
+- 新增内容：Octop 应用容器、独立 Octop 主机数据目录、openGauss 中独立 `octop` 数据库及非超级用户 `octop`。
+- 复用内容：现有 openGauss 容器 `opengauss_test`、现有 Nginx 容器 `nginx`。
+- 禁止触碰：既有 `plat` 数据库及其表/数据、openGauss 数据目录、现有容器定义和其他业务容器。
+- 回滚原则：先撤销新增 Nginx 路由并停止新 Octop 容器；保留新数据库与数据目录用于调查。禁止删除卷或操作现有数据库。
+
+## 操作前检查
+
+| 检查项 | 结果 | 时间 / 操作人 | 证据或备注 |
+| --- | --- | --- | --- |
+| Spug 登录和主机身份复核 | 已完成，只读 | 2026-10-28 / Codex | 主机 `10.51.49.8` |
+| OS、架构、Docker、磁盘空间 | 已完成，只读 | 2026-10-28 / Codex | Kylin V10，x86_64，Docker 26.0.2，`/APP` 可用约 157 GiB |
+| openGauss / Nginx 容器、网络和挂载 | 已完成，只读 | 2026-10-28 / Codex | 详见 `AJ_DEPLOYMENT_RUNBOOK.md`；未执行 DDL/DML |
+| 运行中 openGauss build 版本 | 已确认 | 2026-10-28 / Codex | `gsql` 与 `gs_dump` 均为 6.0.5 build `5ba692ab` |
+| `gs_dump --version`（以 `omm` 身份） | 已完成，只读 | 2026-10-28 / Codex | `gs_dump (openGauss 6.0.5 build 5ba692ab)` |
+| `octop` 库和角色存在性及权限查询 | 已完成，只读 | 2026-10-28 / Codex | 库/角色均不存在；`omm` 有 superuser/createdb/createrole，`plat` 三项均否 |
+| 数据库/TLS/外部 URL 最终确认 | 部分确认 | 2026-10-28 / Codex | 候选 URL `http://211.137.76.3:8081/octop`；TLS 终止仍待确认 |
+| 正式镜像提交、镜像摘要、品牌和子路径验收 | 待补 |  |  |
+| 生产操作审批 | 待补 |  |  |
+
+## 数据库与账号
+
+此节按每条语句分别记录。执行身份、命令摘要和结果必须可追溯；禁止记录口令。
+
+| 序号 | 操作 | 执行前状态 | 执行身份 | 时间 / 操作人 | 结果 / 证据 | 回滚或后续动作 |
+| --- | --- | --- | --- | --- | --- | --- |
+| DB-RO-01 | 只读查询 `gs_dump --version` | 已完成 | `omm` | 2026-10-28 / Codex | openGauss 6.0.5 build `5ba692ab` | 不涉及写入 |
+| DB-RO-02 | 只读检查 `octop` 数据库是否存在 | 不存在 | `omm` | 2026-10-28 / Codex | 查询 0 rows | 不涉及写入 |
+| DB-RO-03 | 只读检查 `omm`、`plat`、`octop` 角色属性 | `octop` 不存在 | `omm` | 2026-10-28 / Codex | `omm` 为 superuser/createdb/createrole；`plat` 均否 | 不涉及写入 |
+| DB-DDL-01 | 创建最小权限 `octop` 角色 | 首次语法和空口令尝试均失败，后续成功 | `omm` | 2026-10-28 / Codex | 使用该版本支持的 `NOLOGIN NOCREATEDB NOCREATEROLE` 创建；角色无超级用户、建库、建角色权限 | 已完成；登录在口令设置成功后启用 |
+| DB-DDL-02 | 创建 `octop` 数据库并指定 owner | 数据库不存在 | `omm` | 2026-10-28 / Codex | `CREATE DATABASE` 成功；只创建独立空库 `octop`，owner 为 `octop` | 已完成；不涉及 `plat` 库对象 |
+| DB-RO-04 | 复核库 owner、角色属性及 `plat` 角色属性 | 已完成 | `omm` | 2026-10-28 / Codex | `octop` owner=`octop`；角色非 superuser/createdb/createrole，LOGIN 已启用且口令非空；`plat` 角色属性与此前只读检查一致 | 只核对角色属性和新库 owner；未对 `plat` 执行 DDL/DML |
+| DB-SEC-01 | 设置口令并启用 `octop` 登录 | 初次设置因超长及复杂度不足失败，失败后已禁用登录 | `omm` | 2026-10-28 / Codex | 最终 32 字符随机口令设置成功，随后启用 LOGIN；使用 `gsql -2` 密码管道验证，`octop` 成功连接 `octop` 库；口令只存于 `.env`，未写入记录 | 已完成；实例认证配置未修改，MD5 风险需纳入后续安全评估 |
+
+执行结果更正（2026-10-28）：最初创建角色的尝试先因 openGauss 不支持 PostgreSQL 的 `NOSUPERUSER` 选项失败，随后因空口令失败；最终改用版本支持的角色属性并提供非空口令后，角色创建成功。`CREATE DATABASE octop OWNER octop` 随后成功。口令设置过程中，超长口令和仅含十六进制字符的口令均被 openGauss 拒绝；由于该版本 `gsql` 在 SQL 报错时仍可能返回成功退出码，不能只依赖 shell `$?` 判断。失败尝试后均将角色设回 `NOLOGIN`；最终口令满足长度和复杂度要求，设置语句输出成功后才启用 LOGIN。
+
+当前核验状态：`octop` 库 owner 为 `octop`；角色没有超级用户、建库或建角色权限，LOGIN 已启用且口令字段非空；`plat` 角色属性与部署前只读检查一致。使用 `.env` 中口令并通过 openGauss `gsql -2` 管道认证，成功连接新库，查询结果为 `octop|octop`。此前的探测采用不适用于本次 `gsql` 的 `PGPASSWORD`/PostgreSQL 风格方式，未能传入口令；失败反映验证命令不兼容，不代表凭据错误。`/APP/DockerData/octop-aj/config` 权限为 `0700`，`.env` 为 `0600`，目录内无残留临时口令文件。`password_encryption_type=0`，来源为 `/var/lib/opengauss/data/postgresql.conf` 第 913 行（`password_encryption_type = 0`）；`octop` 摘要类型为 `md5`。openGauss 输出 `The encrypted password contains MD5 ciphertext, which is not secure.`；本次没有修改实例认证配置。未在 `plat` 库的表或数据上执行 Octop 初始化、migration 或业务 DML；角色及建库语句虽通过连接 `plat` 的管理会话执行，但目标分别是集群角色和独立 `octop` 库。未启动 Octop 容器，也未修改 Nginx。
+
+应用驱动验证补充（2026-10-28）：远端 openGauss 容器内没有 `psycopg` Python 包；本地现有 `octop-opengauss-aj:review-20261028` 镜像来自含未提交改动的工作区，没有用于生产库测试。另构建仅含 `psycopg[binary]==3.3.4` 的小型测试镜像，从 Spug 文件管理器上传到远端 `/tmp`；远端归档 SHA-256 与本地一致。测试镜像在现有 `bridge` 网络以 `--rm` 运行，无端口映射和数据卷，通过受限 `.env` 连接新库并执行只读 `SELECT current_user, current_database()`，返回 `octop|octop`。未启动 Octop，也未触发初始化或 migration。验证后删除远端归档、临时镜像，并删除本地临时 psycopg 测试镜像；独立 Octop smoke 构建镜像仍只保留在本地。
+
+Smoke 镜像构建补充（2026-10-28）：从干净提交 `1c009695`（`git archive`）本地构建 `linux/amd64` 镜像 `octop-opengauss:db-smoke-1c009695`，image ID `sha256:729f3a3c33b0053df8c3021dfc98d28552fc2608973ad0a5bad3f19f7a0e808f`，大小约 3.13 GB。构建目标 `opengauss-runtime`，前端 base path `/octop/`，未安装本地 embedding。镜像内 `psycopg` 为 3.3.4，`gs_dump`/`gs_restore` 为 openGauss 6.0.5 build `5ba692ab`。构建仅使用本地 `--load`，没有 `--push`，没有启动容器或 openGauss 服务。该完整 Octop smoke 镜像仍只在本地，未传远端；远端驱动验证使用另一个仅含 psycopg 的小型临时测试镜像，完成后已清理。完整镜像仅作测试，不是发布镜像。
+
+完整应用镜像 review 构建补充（2026-10-28）：使用当前工作区构建 `linux/amd64` 镜像 `octop-opengauss:aj-review-20261028`，image ID `sha256:20bd8145bd26680c5690811b4708b1a84d71fc2772f75138fb1759aeddc09abc`，大小约 3.14 GB；与先前本地 review 镜像内容相同。构建目标 `opengauss-runtime`，`VITE_BASE_PATH=/octop/`，`INSTALL_LOCAL_EMBEDDING=false`。验证镜像内 `psycopg 3.3.4`、Octop Python 模块导入、`gs_dump` 6.0.5 客户端均成功。仅本地 `--load`，未推送、未传远端、未启动应用。当前工作区有未提交改动，此镜像是审核候选，不作为正式发布镜像。
+
+推荐的只读查询模板（先通过 Spug 以 `omm` 进入容器执行；完整输出检查敏感信息后再摘录）：
+
+```sh
+docker exec opengauss_test su - omm -c 'gs_dump --version'
+docker exec -it opengauss_test su - omm -c 'gsql -p 5432 -d plat'
+```
+
+进入 `gsql` 后只读检查：
+
+```sql
+SELECT datname FROM pg_database WHERE datname = 'octop';
+SELECT rolname, rolsuper, rolcreatedb, rolcreaterole
+FROM pg_roles WHERE rolname IN ('omm', 'plat', 'octop');
+```
+
+部署前只读检查确认目标库和角色均不存在，并确认只有 `omm` 可执行建库/建角色。其后已由 `omm` 创建独立 `octop` 角色和数据库；不要重复执行创建语句，也不要使用现有 `plat` 账号作为 Octop 的运行账号。
+
+## 应用与入口变更
+
+| 序号 | 操作 | 执行前状态 | 时间 / 操作人 | 结果 / 证据 | 回滚或后续动作 |
+| --- | --- | --- | --- | --- | --- |
+| APP-01 | 创建 `/APP/DockerData/octop-aj/` 和独立数据目录 | 未执行 |  |  | 只允许操作本次专用路径 |
+| APP-02 | 安装单应用 Compose 与权限受限 `.env` | 未执行 |  |  | `.env` 不复制进记录/工单 |
+| APP-03 | `docker compose config -q` 校验 | 未执行 |  |  | 禁止留存会展开密钥的配置输出 |
+| APP-04 | 启动 `octop-opengauss-aj` | 未执行 |  |  | 停止新容器，保留数据和数据库 |
+| APP-05 | 健康、登录、数据持久化验收 | 未执行 |  |  | 失败则撤销入口并停止新容器 |
+| NGINX-01 | 备份并追加 `/octop/` 路由 | 未执行 |  |  | 恢复本次修改前配置 |
+| NGINX-02 | `nginx -t` 后 reload 和外部验收 | 未执行 |  |  | 先恢复配置、测试，再 reload |
+
+## 备份恢复与最终验收
+
+| 项目 | 结果 | 时间 / 操作人 | 证据或归档摘要 |
+| --- | --- | --- | --- |
+| 新 `octop` 库备份 | 待执行 |  |  |
+| Octop 文件数据备份 | 待执行 |  |  |
+| 隔离环境恢复演练 | 待执行 |  |  |
+| `/octop/`、API、OIDC、Agent Memory、知识库验收 | 待执行 |  |  |
+| 完整业务/MCP 测试（按已配置连接器执行） | 待执行 |  |  |
+| 生产变更完成确认 | 待执行 |  |  |

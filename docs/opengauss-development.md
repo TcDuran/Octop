@@ -18,7 +18,7 @@
 | Python | 新 worktree 自己的 `.venv`，通过 `uv sync --frozen` 安装 |
 | 运行时 | 新 worktree 的 `data/opengauss/home` |
 | 后端地址 | `127.0.0.1:18088`；独立 Compose 服务已完成首次启动及重启验收 |
-| 应用容器 / Compose 项目 | `octop-opengauss`；使用独立 `docker/docker-compose.opengauss.yml` |
+| 应用容器 / Compose 项目 | `octop-opengauss`；使用独立 `docker/docker-compose.opengauss-local.yml` |
 | 应用镜像 / Docker 数据 | `octop-opengauss:dev` / 本 worktree 的 `data/opengauss/docker-home` |
 
 原始适配基于 cc623be1 创建独立工作树，保留当时已有 PLAT、自动化分析及部署路径能力。2026-10-26 当前 fork 已有 develop；通过 feature/opengauss-integration-20261026 工作树整合，保留功能分支提交与官方同步历史。主目录现有 Docker/CPU 兼容改动单独提交，不混入原始适配提交。
@@ -47,7 +47,7 @@ cd /Users/guixiaolong/Environment/octop-opengauss
 
 ### 端口与容器隔离
 
-现有应用容器 `octop` 使用 8088；独立服务只使用 `docker/docker-compose.opengauss.yml`，固定容器名和 Compose 项目名为 `octop-opengauss`，镜像为 `octop-opengauss:dev`，仅映射 `127.0.0.1:18088:18088`。不能直接使用默认 Compose，否则会复用 `octop` 容器名、`octop:latest` 镜像名和默认数据路径。
+现有应用容器 `octop` 使用 8088；独立服务只使用 `docker/docker-compose.opengauss-local.yml`，固定容器名和 Compose 项目名为 `octop-opengauss`，镜像为 `octop-opengauss:dev`，仅映射 `127.0.0.1:18088:18088`。不能直接使用默认 Compose，否则会复用 `octop` 容器名、`octop:latest` 镜像名和默认数据路径。
 
 Docker 数据挂载到本 worktree 的 `data/opengauss/docker-home`；原生进程仍用 `data/opengauss/home`。二者均连接独立 octop 开发库，不同时启动。启动前检查 18088 未被占用，不自动停止其他服务。
 
@@ -58,7 +58,7 @@ Docker 数据挂载到本 worktree 的 `data/opengauss/docker-home`；原生进�
 上述应用 Compose 已通过配置校验，镜像 `octop-opengauss:dev` 已构建；应用容器已启动并通过健康检查。复现启动命令：
 
 ```bash
-( source .env.opengauss; docker compose -f docker/docker-compose.opengauss.yml up -d --build )
+( source .env.opengauss; docker compose -f docker/docker-compose.opengauss-local.yml up -d --build )
 ```
 
 ### 开发库与销毁式测试库分离

@@ -42,7 +42,7 @@ help:
 	@echo "Build targets:"
 	@echo "  build            Build frontend + Python wheel (full package)"
 	@echo "  build-frontend   Build React dashboard only → $(DASHBOARD_DEST)"
-	@echo "  build-wheel      Build Python wheel only (assumes frontend built)"
+	@echo "  build-wheel      Build branded frontend + Python wheel"
 	@echo ""
 	@echo "Publish targets:"
 	@echo "  publish          Build + upload to PyPI (PYPI_TOKEN or prompt)"
@@ -98,10 +98,13 @@ build-frontend:
 	cd $(DASHBOARD_DIR) && npm ci
 	@echo "[build-frontend] Building dashboard (output: $(DASHBOARD_DEST))..."
 	cd $(DASHBOARD_DIR) && NODE_ENV=production NODE_OPTIONS="--max-old-space-size=2048" npm run build
+	@echo "[build-frontend] Applying and verifying PLAT brand..."
+	bash $(REPO_ROOT)/brand/patch-octop-brand.sh $(REPO_ROOT)
+	$(PYTHON) $(REPO_ROOT)/brand/verify-octop-brand.py --directory $(REPO_ROOT)
 	@echo "[build-frontend] Done."
 
 .PHONY: build-wheel
-build-wheel:
+build-wheel: build-frontend
 	@echo "[build-wheel] Generating README.pypi.md (CHANGELOG + README)..."
 	@{ cat $(REPO_ROOT)/CHANGELOG.md; echo; cat $(REPO_ROOT)/README.md; } > $(REPO_ROOT)/README.pypi.md
 	@cp $(REPO_ROOT)/pyproject.toml $(REPO_ROOT)/pyproject.toml.bak
@@ -123,6 +126,9 @@ build-wheel:
 	exit $$status
 	@echo "[build-wheel] Done. Artifacts in: $(DIST_DIR)/"
 	@ls -lh $(DIST_DIR)/
+	@for wheel in $(DIST_DIR)/octop-*.whl; do \
+		$(PYTHON) $(REPO_ROOT)/brand/verify-octop-brand.py --artifact "$$wheel"; \
+	done
 
 # ─── Publish ─────────────────────────────────────────────────────────────────
 

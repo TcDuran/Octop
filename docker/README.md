@@ -14,6 +14,7 @@ This directory contains the Docker build and deployment assets for Octop.
 | `docker-compose.yml` | One-command local / self-hosted deployment |
 | `docker-compose.cn.yml` | Same stack, pulls `ghcr.nju.edu.cn/tencentcloud/octop:latest` (no local build) |
 | `docker-compose.postgres.yml` | PostgreSQL (+ pgvector) for dual-backend dev/tests |
+| `docker-compose-odc-postgres.yml` | ODC production Compose using a dedicated PostgreSQL database and external network |
 | `postgres/init-vector.sql` | Instance-level `CREATE EXTENSION vector` (initdb.d; **not** Octop migrations) |
 | `docker-entrypoint.sh` | Container entrypoint: first-run init + start server |
 
@@ -98,6 +99,23 @@ image to receive these dependencies; restarting an older image is insufficient.
 - Compose mounts host `~/.octop` → container `/data/.octop`
 - `docker run` example uses named volume `octop-data`
 - First boot: a valid `OCTOP_DEFAULT_PASSWORD` runs `octop init` and writes `credential.txt`; unset or rejected passwords skip admin creation and write the wizard unlock password to `/data/.octop/octop-login.txt`. The container does not exit because of a weak default.
+
+### ODC PostgreSQL deployment
+
+Use [`docker-compose-odc-postgres.yml`](docker-compose-odc-postgres.yml) for the ODC
+host. Build the release image with `VITE_BASE_PATH=/octop/ INSTALL_LOCAL_EMBEDDING=false`; a configured remote
+third-party embedding provider remains available, and the knowledge base continues to
+use its SQLite sidecar under `/data/.octop/knowledge`. Create a dedicated PostgreSQL
+`octop` database and runtime role before the first start. Keep those values in the
+deployment `.env`; never point the file at the shared `plat` database or a superuser.
+
+For an update, back up PostgreSQL and `/apps/octop/data`, record the current immutable
+image tag/digest, update `OCTOP_IMAGE`, run `docker compose -f
+docker-compose-odc-postgres.yml config`, then recreate the service. Startup applies the
+numbered Octop migrations. Verify `/api/health`, login, the read-only REST-to-MCP
+connector, and database connectivity before removing the previous image. Rollback
+requires the previous image plus a compatible database/data backup; reverting only the
+container image does not undo migrations.
 
 ### Health check
 

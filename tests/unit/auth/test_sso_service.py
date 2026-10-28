@@ -211,6 +211,21 @@ async def test_callback_error_redirect_prefers_dashboard_origin(service: SsoServ
 
 
 @pytest.mark.asyncio
+async def test_callback_error_redirect_keeps_public_path_with_dashboard_origin(
+    service: SsoService,
+) -> None:
+    configure_provider(service, dashboard_origin="https://dashboard.example")
+    denied = await service.handle_callback(
+        code=None,
+        state=None,
+        error="access_denied",
+        public_base="https://api.example/octop",
+    )
+
+    assert denied.url == "https://dashboard.example/octop/login?oidc_error=denied"
+
+
+@pytest.mark.asyncio
 async def test_callback_maps_denied_bad_state_and_invalid_token(service: SsoService) -> None:
     denied = await service.handle_callback(
         code=None, state=None, error="access_denied", public_base="https://octop.example"
