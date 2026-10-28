@@ -66,11 +66,14 @@ octop run     # 启动服务 → http://127.0.0.1:8088
 
 ## 构建 PyPI wheel
 
-先构建前端（产物写入 `src/octop/dashboard/`，与 `dashboard/vite.config.ts` 的 `outDir` 一致），再打包 wheel。
+打包入口会自动构建前端（产物写入 `src/octop/dashboard/`），应用 PLAT 品牌补丁，并在 wheel 生成后校验品牌内容；校验失败时不会继续交付包。
 
 ```bash
 bash scripts/wheel_build.sh
 ```
+
+openGauss 成对交付请使用 `bash docker/opengauss/build-dist.sh`，不要绕过入口直接执行 `uv build`。
+如果服务挂在 `/octop/` 子路径，先设置 `VITE_BASE_PATH=/octop/` 再执行打包入口。
 
 Windows:
 

@@ -95,4 +95,16 @@ else
 fi
 patch_count=$((patch_count + 1))
 
+grep -qF '<title>PLAT 助手</title>' "$DASH/index.html" \
+  || fail "品牌校验失败：index.html 标题不是 PLAT 助手"
+grep -qF 'content="PLAT 助手"' "$DASH/index.html" \
+  || fail "品牌校验失败：移动端标题不是 PLAT 助手"
+grep -qF '"name": "PLAT 助手"' "$DASH/manifest.json" \
+  || fail "品牌校验失败：manifest name 不是 PLAT 助手"
+grep -qF '"short_name": "PLAT 助手"' "$DASH/manifest.json" \
+  || fail "品牌校验失败：manifest short_name 不是 PLAT 助手"
+if ! grep -qlF 'PLAT 助手' "$DASH"/assets/*.js 2>/dev/null; then
+  fail "品牌校验失败：JS chunk 中没有 PLAT 助手标题"
+fi
+
 echo "==> 完成：白标补丁已应用/已验证。octop 仓库源码零改动（仅构建产物 + brand/ 工具目录）。"

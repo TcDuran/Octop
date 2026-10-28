@@ -10,7 +10,7 @@
 
 ## 源码与 Docker
 
-源码安装执行 uv sync --frozen。Docker 使用 docker/docker-compose.opengauss.yml，其容器名为 octop-opengauss，只绑定 127.0.0.1:18088，数据目录独立。凭证通过忽略的环境文件载入，不写入镜像或仓库。
+源码安装执行 uv sync --frozen。Docker 使用 docker/docker-compose.opengauss-local.yml，其容器名为 octop-opengauss，只绑定 127.0.0.1:18088，数据目录独立。凭证通过忽略的环境文件载入，不写入镜像或仓库。
 
 opengauss-runtime 构建目标包含 6.0.5 的 gs_dump/gs_restore。当前客户端基础镜像位于内部 Harbor，构建机器需要有权访问该镜像。Dockerfile 的默认目标仍为普通 runtime。
 
@@ -18,11 +18,13 @@ opengauss-runtime 构建目标包含 6.0.5 的 gs_dump/gs_restore。当前客户
 
 Octop 依赖定制的 octop-memory==1.0.2+opengauss.2；该版本没有发布到公共 PyPI。发布方必须同时交付两个 wheel，不能只发送 Octop wheel。
 
-在仓库根目录执行：
+在仓库根目录执行（脚本会自动构建前端、应用并校验 PLAT 品牌，再生成两个 wheel）：
 
     bash docker/opengauss/build-dist.sh
 
-输出目录为 dist/opengauss，也可将输出路径作为脚本第一个参数。先完成 dashboard 构建，再构建实际发布包；单独构建 wheel 不生成前端资源。
+如果部署在 ODC 的 `/octop/` 子路径，使用 `VITE_BASE_PATH=/octop/ bash docker/opengauss/build-dist.sh`；该变量会传给前端构建并保留在 wheel 中。
+
+输出目录为 dist/opengauss，也可将输出路径作为脚本第一个参数。不要直接执行 `uv build` 代替该脚本，否则可能拿到未应用品牌补丁的旧 dashboard 产物。
 
 在干净 Python 3.12+ 环境中安装两个明确的文件：
 

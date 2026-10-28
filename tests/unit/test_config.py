@@ -23,6 +23,7 @@ def test_defaults_when_missing(tmp_path: Path):
     assert cfg.database.sqlite_path == "octop.db"
     assert cfg.database.is_sqlite
     assert cfg.database_in_file is False
+    assert cfg.public_base_url == ""
     assert cfg.backup.auto_enabled is False
     assert cfg.backup.schedule == "cron:0 4 * * *"
     assert cfg.backup.retention_count == 7
@@ -39,6 +40,50 @@ def test_defaults_when_missing(tmp_path: Path):
     assert "password" not in written.get("database", {})
     assert written.get("backup", {}).get("auto_enabled") is False
     assert written["max_upload_mb"] == 100
+    assert written["public_base_url"] == ""
+
+
+def test_public_base_url_from_file_and_normalizes_trailing_slash(tmp_path: Path):
+    cfg_path = tmp_path / "config.json"
+    cfg_path.write_text(json.dumps({"public_base_url": "http://localhost:8080/octop/"}))
+
+    assert load_config(cfg_path).public_base_url == "http://localhost:8080/octop"
+
+
+def test_public_base_url_env_overrides_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    cfg_path = tmp_path / "config.json"
+    cfg_path.write_text(json.dumps({"public_base_url": "https://file.example/octop"}))
+    monkeypatch.setenv("OCTOP_PUBLIC_BASE_URL", "http://env.example/octop/")
+
+    assert load_config(cfg_path).public_base_url == "http://env.example/octop"
+
+
+def test_empty_public_base_url_env_keeps_file_value(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    cfg_path = tmp_path / "config.json"
+    cfg_path.write_text(json.dumps({"public_base_url": "https://file.example/octop"}))
+    monkeypatch.setenv("OCTOP_PUBLIC_BASE_URL", "")
+
+    assert load_config(cfg_path).public_base_url == "https://file.example/octop"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "ftp://octop.example",
+        "http:///octop",
+        "https://user:pass@octop.example",
+        "https://octop.example/path?query=1",
+        "https://octop.example/path#fragment",
+    ],
+)
+def test_invalid_public_base_url_in_file_raises(tmp_path: Path, value: str):
+    cfg_path = tmp_path / "config.json"
+    cfg_path.write_text(json.dumps({"public_base_url": value}))
+
+    with pytest.raises(ValueError, match="public_base_url"):
+        load_config(cfg_path)
 
 
 def test_loads_backup_section(tmp_path: Path):

@@ -1,27 +1,26 @@
 # 独立开发环境；完成 openGauss 适配和初始化验收后使用。
 # 在 worktree 根目录执行（凭证只从本地忽略文件载入）：
-#   ( source .env.opengauss; docker compose -f docker/docker-compose.opengauss.yml up -d --build )
+#   ( source .env.opengauss; docker compose -f docker/docker-compose.opengauss-local.yml up -d --build )
 name: octop-opengauss
 
 services:
-  octop-opengauss:
+  octop:
     platform: linux/amd64
     build:
       context: ..
       dockerfile: docker/Dockerfile
       target: opengauss-runtime
     image: octop-opengauss:dev
-    container_name: octop-opengauss
-    restart: "no"
+    restart: unless-stopped
     ports:
-      - "127.0.0.1:18088:18088"
+      - "127.0.0.1:8088:8088"
     volumes:
-      - ../data/opengauss/docker-home:/data/.octop
+      - ../data/opengauss:/data/.octop
     environment:
       HOME: /data
       OCTOP_HOME: /data/.octop
       OCTOP_BIND_HOST: 0.0.0.0
-      OCTOP_PORT: "18088"
+      OCTOP_PORT: "8088"
       OCTOP_DATABASE_DRIVER: opengauss
       OCTOP_DATABASE_HOST: ${OCTOP_DATABASE_HOST:?load .env.opengauss first}
       OCTOP_DATABASE_PORT: ${OCTOP_DATABASE_PORT:?load .env.opengauss first}

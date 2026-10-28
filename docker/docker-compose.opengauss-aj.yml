@@ -1,0 +1,67 @@
+# AJ production deployment draft for review.
+# Place this file and a mode-0600 .env under /APP/DockerData/octop-aj/.
+# The .env must contain reviewed values for:
+#   OCTOP_IMAGE              immutable image reference using @sha256 digest
+#   OCTOP_DATABASE_NETWORK   existing network (AJ preflight: default bridge)
+#   OCTOP_DATABASE_HOST      verified host bridge gateway (AJ preflight: 172.17.0.1)
+#   OCTOP_DATABASE_PORT      existing host mapping (AJ preflight: 15434)
+#   OCTOP_DATABASE_NAME      dedicated database named octop
+#   OCTOP_DATABASE_USER      dedicated non-superuser account for database octop
+#   OCTOP_DATABASE_PASSWORD  password for that dedicated account
+#   OCTOP_BIND_ADDRESS       Docker bridge gateway reachable by host Nginx
+#   OCTOP_PUBLIC_BASE_URL    approved external URL, including /octop
+#
+# Review the network, bind address, TLS boundary, image digest, and credentials
+# before running `docker compose config` or starting this service.
+
+name: octop-opengauss-aj
+
+services:
+  octop:
+    image: ${OCTOP_IMAGE:?Set OCTOP_IMAGE to the approved immutable image digest}
+    pull_policy: never
+    container_name: octop-opengauss-aj
+    restart: unless-stopped
+    stop_grace_period: 30s
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    ports:
+      - target: 8088
+        published: "18088"
+        host_ip: ${OCTOP_BIND_ADDRESS:?Set the verified Docker bridge gateway address}
+        protocol: tcp
+    volumes:
+      - /APP/DockerData/octop-aj/data:/data/.octop
+    environment:
+      HOME: /data
+      OCTOP_HOME: /data/.octop
+      OCTOP_BIND_HOST: 0.0.0.0
+      OCTOP_PORT: "8088"
+      OCTOP_LOG_LEVEL: ${OCTOP_LOG_LEVEL:-info}
+      OCTOP_PUBLIC_BASE_URL: ${OCTOP_PUBLIC_BASE_URL:?Set the approved external URL including /octop}
+      OCTOP_DATABASE_DRIVER: opengauss
+      OCTOP_DATABASE_HOST: ${OCTOP_DATABASE_HOST:?Set the verified openGauss service address}
+      OCTOP_DATABASE_PORT: ${OCTOP_DATABASE_PORT:?Set the verified openGauss listener port}
+      OCTOP_DATABASE_NAME: ${OCTOP_DATABASE_NAME:?Set the dedicated octop database name}
+      OCTOP_DATABASE_USER: ${OCTOP_DATABASE_USER:?Set the dedicated octop database account}
+      OCTOP_DATABASE_PASSWORD: ${OCTOP_DATABASE_PASSWORD:?Set the dedicated octop database password}
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8088/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    networks:
+      - opengauss
+
+networks:
+  opengauss:
+    name: ${OCTOP_DATABASE_NETWORK:?Set the verified existing openGauss Docker network}
+    external: true

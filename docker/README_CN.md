@@ -13,7 +13,6 @@
 | `docker_build.sh` | 从源码构建镜像（默认开启 BuildKit 缓存） |
 | `docker-compose.yml` | 本地开发 / 自托管一键启动 |
 | `docker-compose.cn.yml` | 同一套服务，拉取 `ghcr.nju.edu.cn/tencentcloud/octop:latest`（不本地构建） |
-| `docker-compose.postgres.yml` | 仅 PostgreSQL（+ pgvector）开发/测试库；扩展在 `postgres/init-vector.sql` |
 | `docker-compose-odc-postgres.yml` | ODC 生产 Compose：复用外部 PostgreSQL 网络，使用独立 `octop` 库/账号，不启动或访问 `plat` 库 |
 | `postgres/init-vector.sql` | 实例级 `CREATE EXTENSION vector`（initdb.d；**不**进 Octop 迁移） |
 | `docker-entrypoint.sh` | 容器入口：首次初始化数据库并启动服务 |
@@ -103,6 +102,9 @@ INSTALL_LOCAL_EMBEDDING=false bash docker/docker_build.sh octop:tag
 embedding；知识库原文、分块和向量索引继续保存在 `/data/.octop/knowledge` 的 SQLite
 sidecar。部署前由 DBA 创建独立的 PostgreSQL `octop` 数据库和运行账号，`.env` 只保存
 该账号的连接信息，不得填写共享 `plat` 数据库或超级用户。
+
+通过 Nginx 子路径 `/octop/` 部署时，在 `/apps/octop/.env` 设置
+`OCTOP_PUBLIC_BASE_URL=http://221.232.69.57:7321/octop`，使 OIDC/OAuth 回调和其他对外链接保留前缀。
 
 更新流程：先备份数据库和 `/apps/octop/data`，记录当前镜像 tag/digest；将新镜像 tag
 写入 `/apps/octop/.env` 后执行 `docker compose -f docker-compose-odc-postgres.yml
