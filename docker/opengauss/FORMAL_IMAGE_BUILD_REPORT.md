@@ -47,4 +47,32 @@ docker buildx build \
 
 ## 交付与部署约束
 
-本报告对应的镜像仍只存在于构建机。交付到部署环境时，应采用经过审核的镜像仓库或离线归档方式，并在传输两端校验 SHA-256；生产 Compose 使用不可变镜像引用，不使用 `latest`。部署步骤、数据库边界、备份恢复和回滚要求见 [AJ_DEPLOYMENT_RUNBOOK.md](AJ_DEPLOYMENT_RUNBOOK.md)。
+2026-10-28 已通过 Spug 文件管理器将镜像离线归档上传至 `10.51.49.8`，完成分片及完整归档校验；归档尚未加载至远端 Docker，也未启动应用。后续生产 Compose 使用不可变镜像引用，不使用 `latest`。部署步骤、数据库边界、备份恢复和回滚要求见 [AJ_DEPLOYMENT_RUNBOOK.md](AJ_DEPLOYMENT_RUNBOOK.md)。
+
+## 离线归档上传记录
+
+| 项目 | 记录 |
+| --- | --- |
+| 目标主机 | `10.51.49.8` |
+| 远端目录 | `/APP/DockerData/octop-aj/releases/main-ee6f5c7d-20261028/`，权限 `0700` |
+| 归档文件 | `octop-opengauss-main-ee6f5c7d-20261028.tar.gz`，权限 `0600` |
+| 归档大小 | `1,213,336,901` bytes（约 1.13 GiB） |
+| 归档 SHA-256 | `99bd2891371da4e5ef8b1ad165afbc1cfe57421c07acf6c4c7c5dadd98737652` |
+| 分片方式 | 每片 32 MiB，共 37 片，文件后缀 `.part000` 至 `.part036` |
+| 校验清单 | `SHA256SUMS.parts`、`SHA256SUMS.archive`，均已上传 |
+| 校验结果 | 37 片 SHA-256 全部通过；合并后 SHA-256 与本地一致；`gzip -t` 通过 |
+| 远端 Docker 操作 | 未执行 `docker load`、未创建或启动应用容器 |
+
+本地使用 `docker save octop-opengauss:main-ee6f5c7d | gzip -1` 生成归档后分片，再使用 Spug 的上传文件入口逐个上传到上述独立目录。远端校验、合并命令如下；仅适用于本次文件集，已有完整归档时不得重复覆盖：
+
+```sh
+cd /APP/DockerData/octop-aj/releases/main-ee6f5c7d-20261028
+sha256sum --quiet -c SHA256SUMS.parts
+# 所有分片校验成功后再执行；noclobber 防止覆盖已有归档。
+(set -C; cat octop-opengauss-main-ee6f5c7d-20261028.tar.gz.part[0-9][0-9][0-9] > octop-opengauss-main-ee6f5c7d-20261028.tar.gz)
+chmod 600 octop-opengauss-main-ee6f5c7d-20261028.tar.gz
+sha256sum -c SHA256SUMS.archive
+gzip -t octop-opengauss-main-ee6f5c7d-20261028.tar.gz
+```
+
+以上步骤已成功执行；分片和校验清单暂保留在同一发布目录，供后续核对。上传和合并仅新增本次发布文件，没有修改现有数据库、应用容器或 Nginx 配置。
