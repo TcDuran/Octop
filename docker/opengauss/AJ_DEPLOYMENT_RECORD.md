@@ -22,7 +22,7 @@
 | `gs_dump --version`（以 `omm` 身份） | 已完成，只读 | 2026-10-28 / Codex | `gs_dump (openGauss 6.0.5 build 5ba692ab)` |
 | `octop` 库和角色存在性及权限查询 | 已完成，只读 | 2026-10-28 / Codex | 库/角色均不存在；`omm` 有 superuser/createdb/createrole，`plat` 三项均否 |
 | 数据库/TLS/外部 URL 最终确认 | 部分确认 | 2026-10-28 / Codex | 候选 URL `http://211.137.76.3:8081/octop`；TLS 终止仍待确认 |
-| 正式镜像提交、镜像摘要、品牌和子路径验收 | 待补 |  |  |
+| 正式镜像提交、镜像摘要、品牌和子路径验收 | 已完成 | 2026-10-28 / Codex | 主分支 `ee6f5c7d`；镜像 `octop-opengauss:main-ee6f5c7d`，ID `sha256:906f34bdcb57f3356da1dc0b7d1c823f4f2e410c24ca8f229f302a39b1a6a576`；品牌、`/octop/` 和 openGauss 客户端已核对 |
 | 生产操作审批 | 待补 |  |  |
 
 ## 数据库与账号
@@ -88,3 +88,9 @@ FROM pg_roles WHERE rolname IN ('omm', 'plat', 'octop');
 | `/octop/`、API、OIDC、Agent Memory、知识库验收 | 待执行 |  |  |
 | 完整业务/MCP 测试（按已配置连接器执行） | 待执行 |  |  |
 | 生产变更完成确认 | 待执行 |  |  |
+
+## 正式镜像构建
+
+2026-10-28 在已合并并推送的 `main` 提交 `ee6f5c7d3e88b6830c17646e63a6706944886881` 上构建 `octop-opengauss:main-ee6f5c7d`。构建目标为 `linux/amd64`、`opengauss-runtime`，参数为 `VITE_BASE_PATH=/octop/`、`INSTALL_LOCAL_EMBEDDING=false`。镜像 ID 为 `sha256:906f34bdcb57f3356da1dc0b7d1c823f4f2e410c24ca8f229f302a39b1a6a576`，大小 `3,138,821,813` bytes。
+
+临时容器核对了 Octop 导入、psycopg 3.3.4、`gs_dump`/`gs_restore` 6.0.5 build `5ba692ab`、`/octop/` 资源和未安装 `fastembed`；核对容器已自动删除。镜像只加载到本地，未推送仓库，暂无 RepoDigest。详细报告见 [FORMAL_IMAGE_BUILD_REPORT.md](FORMAL_IMAGE_BUILD_REPORT.md)。
