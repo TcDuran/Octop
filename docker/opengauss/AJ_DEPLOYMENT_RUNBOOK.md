@@ -168,7 +168,7 @@ location ^~ /octop/ {
 ## 本次发布记录
 
 日期：2026-10-28（Asia/Shanghai）  
-状态：数据库、镜像导入、Compose、`.env` 和独立数据目录准备完成；正式 Octop 应用尚未启动，Nginx 尚未修改。
+状态：数据库、镜像导入、Compose、`.env` 和独立数据目录已完成；正式 Octop 应用已启动，健康与重启持久化验证通过，Nginx 尚未修改。
 
 | 项目 | 记录 |
 | --- | --- |
@@ -187,7 +187,7 @@ location ^~ /octop/ {
 | 客户端验证 | `gs_dump` 与 `gs_restore` 均报告 openGauss 6.0.5 build `5ba692ab` |
 | 镜像摘要 / 归档校验值 | 无仓库 `RepoDigest`；归档 SHA-256 `99bd2891371da4e5ef8b1ad165afbc1cfe57421c07acf6c4c7c5dadd98737652`，远端分片、完整归档及 gzip 校验通过 |
 | 配置 / 数据目录 | `.env` 和 Compose 为 `0600`，`data` 为 root:root、`0700`；原口令保留，旧 `.env` 已在受限配置目录备份 |
-| 生产数据库 / 容器 / Nginx | 独立 `octop` 库和账号可连接；临时驱动容器已自动删除，正式应用未启动；现有 openGauss/Nginx 未重启，未在 `plat` 库执行 Octop DDL/DML |
-| 验收 / 备份恢复 | 未执行 |
+| 生产数据库 / 容器 / Nginx | 独立 `octop` 库和账号可连接；应用容器运行且仅绑定 `172.17.0.1:18088`；现有 openGauss/Nginx 未重启，未在 `plat` 库执行 Octop DDL/DML；Nginx 未修改 |
+| 验收 / 备份恢复 | 启动前数据库与数据目录备份完成；健康、schema 和受控重启持久化通过；隔离恢复、首次管理员、登录和完整业务验收待执行 |
 
 构建补充：首次使用 `octop-amd64-builder` 时因 Harbor 证书只含 DNS SAN、而 Dockerfile 用 IP 地址访问而失败；没有关闭 TLS 校验。第二次使用 `desktop-linux` 构建，复用了本机已有的 openGauss 6.0.5 缓存镜像作为客户端文件来源。远端运行容器的 image ID 与该本地镜像 ID 相同，确认客户端来源与当前数据库镜像文件完全一致；运行中的服务 build 字符串未直接查询。本次没有从生产主机拉取或启动 openGauss 镜像。候选镜像仅作审核；正式镜像已在合并后的 `main` 提交 `ee6f5c7d` 上构建、离线交付并导入，详见正式构建报告。
