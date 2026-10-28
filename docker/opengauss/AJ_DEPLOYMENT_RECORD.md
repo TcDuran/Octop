@@ -75,8 +75,8 @@ FROM pg_roles WHERE rolname IN ('omm', 'plat', 'octop');
 | APP-03 | `docker compose config -q` 校验 | 已完成 | 2026-10-28 / Codex | 渲染配置校验通过；实际 Compose 临时驱动探针只读连接新库成功 | 未打印密钥或完整渲染配置，未启动正式应用 |
 | APP-04 | 启动 `octop-opengauss-aj` | 已完成 | 2026-10-28 / Codex | 首次启动发现账号没有 `public` schema 的 CREATE 权限；仅在独立 `octop` 库授予 USAGE, CREATE 后启动成功，容器运行中 | 回滚时停止新容器，保留数据库和数据目录 |
 | APP-05 | 健康、登录、数据持久化验收 | 部分完成 | 2026-10-28 / Codex | health、schema 25、36 张表和受控重启持久化通过；管理员设置和登录待业务方完成 | 本阶段未修改 Nginx |
-| NGINX-01 | 备份并追加 `/octop/` 路由 | 未执行 |  |  | 恢复本次修改前配置 |
-| NGINX-02 | `nginx -t` 后 reload 和外部验收 | 未执行 |  |  | 先恢复配置、测试，再 reload |
+| NGINX-01 | 备份并追加 `/octop/` 路由 | 已完成 | 2026-10-28 17:11 / Codex | 备份目录 `backups/nginx-20261028T171128/`；仅向 `http_aj.conf` 的 80 端口 server 追加带标记的两段 location，其他字节保持一致 | 恢复该目录的 `http_aj.conf`，测试后 reload |
+| NGINX-02 | `nginx -t` 后 reload 和外部验收 | 已完成（入口验收） | 2026-10-28 / Codex | 修改前后 `nginx -t` 均通过；执行 `nginx -s reload`；外网向导页面、308 跳转保留参数、11 个资源及 health 通过；原 Spug/OA/BPM 响应未变化，容器未重启 | 管理员、登录和业务功能验收仍待执行 |
 
 ## 备份恢复与最终验收
 
@@ -118,4 +118,17 @@ FROM pg_roles WHERE rolname IN ('omm', 'plat', 'octop');
 5. 使用该 Compose 运行 `--rm --no-deps -T --entrypoint python` 临时容器 `octop-aj-preflight-20261028`，执行 `BEGIN READ ONLY` 下的身份、版本、表数量和角色属性查询。结果为 `octop|octop`、openGauss 6.0.5 build `5ba692ab`、`public` 基础表数量 0、无 superuser/createdb/createrole 权限；事务已回滚，容器已自动删除。未执行 Octop 入口或 migrations。
 6. 预检时没有残留 Octop 容器；随后启动 `octop-opengauss-aj`，仅绑定 `172.17.0.1:18088`。现有 `opengauss_test` 的启动时间仍为 `2026-10-09T06:51:35.736230935Z`，Nginx 仍为 `2026-10-12T01:55:52.518555208Z`，均未重启。
 
-本次准备脚本与只读探针保存在远端该发布目录，均不包含凭据。启动后探针验证 `public._schema_version=25`、baseline marker、36 张表和 0 个管理员，受控重启后 health、schema 和向导文件校验均通过。首次启动因 schema ACL 不足失败，已在新库执行 `GRANT USAGE, CREATE ON SCHEMA public TO octop` 后重试成功；Nginx 接入、首次管理员设置、登录及完整业务验收仍未执行。
+本次准备脚本与只读探针保存在远端该发布目录，均不包含凭据。启动后探针验证 `public._schema_version=25`、baseline marker、36 张表和 0 个管理员，受控重启后 health、schema 和向导文件校验均通过。首次启动因 schema ACL 不足失败，已在新库执行 `GRANT USAGE, CREATE ON SCHEMA public TO octop` 后重试成功。Nginx 接入已完成，首次管理员设置、登录及完整业务验收仍未执行。
+
+## Nginx 路由实施与外网验证
+
+2026-10-28 17:11（Asia/Shanghai）在用户审核通过后执行：
+
+1. 核对 `/APP/DockerData/nginx/conf/http_aj.conf` 只有一个 `server`，监听容器 80；确认没有 `/octop` 路由。修改前执行 `docker exec nginx nginx -t`，结果通过。
+2. 创建受限目录 `/APP/DockerData/octop-aj/backups/nginx-20261028T171128/`，保存原 `http_aj.conf`、包含主配置和整个 `conf` 目录的 `nginx-config-before.tar.gz`、原入口响应摘要及容器身份、SHA-256 清单。目录 `0700`，新建归档/记录文件 `0600`；原配置副本保留原模式，受目录权限保护。
+3. 在原 `location /` 前追加 `BEGIN OCTOP AJ` / `END OCTOP AJ` 标记之间的两个 location；通过去除新增块后的逐字节比较，确认原配置保持一致。`/octop` 以 308 跳转并保留查询参数，`/octop/` 转发到 `http://172.17.0.1:18088/`，启用 WebSocket upgrade 和关闭代理缓冲。
+4. 再次执行 `docker exec nginx nginx -t`，通过后执行 `docker exec nginx nginx -s reload`。没有重启或替换 Nginx、openGauss、Octop 容器。
+5. 主机经 Nginx 与外网分别验证页面、11 个 HTML 引用资源和 `/octop/api/health`；health 返回 `ok=true, db=true`。`/octop/api/setup/status` 确认 `database_driver=opengauss`、数据库已绑定、初始化向导需要密码且密码文件存在。浏览器实际显示中文初始化向导，未报告脚本错误；没有读取口令或创建管理员。
+6. 修改前后 `/spug/`、`/spug/home`、`/oa/`、`/bpm/` 均为 200，响应内容摘要、类型和跳转信息完全一致；`/` 原有 403 保持不变。外网 Spug/OA/BPM 入口也为 200。对 `/octop/api/notifications/ws` 发起缺少 token 的 WebSocket 握手，返回预期 403；该项仅验证入口与鉴权拒绝，不能替代登录后的聊天/WebSocket 业务测试。
+
+执行脚本 `octop-aj-nginx-route-20261028.py`、`nginx-route-execution.log`、`nginx-route-verification.json`、`nginx-backup-path.txt` 保存在本次发布目录，脚本 SHA-256 为 `20aa2bc160bf255e296acd386b7620b730043c7baa286c5bc117584044c03dd0`。外网检查结果另保存为 `octop-aj-external-nginx-20261028.json`。后续继续首次管理员、登录和业务验收；本次没有配置模型或调用外部业务 MCP。

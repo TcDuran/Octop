@@ -136,13 +136,15 @@ curl --fail http://<bridge-gateway>:18088/api/health
 确认迁移只发生于新 `octop` 库，完成首次管理员设置并重启一次，验证登录、配置和数据目录持久化。备份 Nginx 配置后追加路由：
 
 ```nginx
-location = /octop { return 308 /octop/; }
+location = /octop { return 308 /octop/$is_args$args; }
 location ^~ /octop/ {
     proxy_pass http://<bridge-gateway>:18088/;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
     proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-Host $http_host;
     proxy_buffering off;
@@ -151,6 +153,16 @@ location ^~ /octop/ {
 ```
 
 先运行 Nginx 配置测试，通过后才 reload。确认 TLS 已由审核过的入口终止，再允许用户登录。
+
+本次 AJ 已于 2026-10-28 实施该路由。备份目录为 `/APP/DockerData/octop-aj/backups/nginx-20261028T171128/`，包含原 `http_aj.conf` 和完整 Nginx 配置归档。现场采用以下命令检查并平滑加载：
+
+```sh
+docker exec nginx nginx -t
+# 仅在上一步成功且配置差异核对无误后执行：
+docker exec nginx nginx -s reload
+```
+
+改动必须仅限新增 location；备份目录放在 Nginx include 目录之外，避免误加载旧配置。修改前后分别检查现有 Spug/OA/BPM 入口，核对容器 ID、启动时间与重启次数。AJ 本次这些入口响应完全一致，容器均未重启。外网 `/octop/`、保留参数的 308 跳转、11 个页面资源和 health 已通过，页面处于受密码保护的初始化向导。无 token 的 WebSocket 握手返回 403；登录后的 WebSocket、聊天、Memory 和知识库业务验收仍待首次设置后执行。
 
 ## 5. 功能、备份与恢复验收
 
@@ -168,7 +180,7 @@ location ^~ /octop/ {
 ## 本次发布记录
 
 日期：2026-10-28（Asia/Shanghai）  
-状态：数据库、镜像导入、Compose、`.env` 和独立数据目录已完成；正式 Octop 应用已启动，健康与重启持久化验证通过，Nginx 尚未修改。
+状态：数据库、镜像导入、Compose、`.env` 和独立数据目录已完成；应用健康与重启持久化验证通过，Nginx 路由已接入并完成外网入口验收，当前等待首次管理员设置。
 
 | 项目 | 记录 |
 | --- | --- |
@@ -187,7 +199,7 @@ location ^~ /octop/ {
 | 客户端验证 | `gs_dump` 与 `gs_restore` 均报告 openGauss 6.0.5 build `5ba692ab` |
 | 镜像摘要 / 归档校验值 | 无仓库 `RepoDigest`；归档 SHA-256 `99bd2891371da4e5ef8b1ad165afbc1cfe57421c07acf6c4c7c5dadd98737652`，远端分片、完整归档及 gzip 校验通过 |
 | 配置 / 数据目录 | `.env` 和 Compose 为 `0600`，`data` 为 root:root、`0700`；原口令保留，旧 `.env` 已在受限配置目录备份 |
-| 生产数据库 / 容器 / Nginx | 独立 `octop` 库和账号可连接；应用容器运行且仅绑定 `172.17.0.1:18088`；现有 openGauss/Nginx 未重启，未在 `plat` 库执行 Octop DDL/DML；Nginx 未修改 |
+| 生产数据库 / 容器 / Nginx | 独立 `octop` 库和账号可连接；应用容器仅绑定 `172.17.0.1:18088`；Nginx 仅追加 `/octop/` 路由并 reload，原入口响应一致；容器未重启，未在 `plat` 库执行 Octop DDL/DML |
 | 验收 / 备份恢复 | 启动前数据库与数据目录备份完成；健康、schema 和受控重启持久化通过；隔离恢复、首次管理员、登录和完整业务验收待执行 |
 
 构建补充：首次使用 `octop-amd64-builder` 时因 Harbor 证书只含 DNS SAN、而 Dockerfile 用 IP 地址访问而失败；没有关闭 TLS 校验。第二次使用 `desktop-linux` 构建，复用了本机已有的 openGauss 6.0.5 缓存镜像作为客户端文件来源。远端运行容器的 image ID 与该本地镜像 ID 相同，确认客户端来源与当前数据库镜像文件完全一致；运行中的服务 build 字符串未直接查询。本次没有从生产主机拉取或启动 openGauss 镜像。候选镜像仅作审核；正式镜像已在合并后的 `main` 提交 `ee6f5c7d` 上构建、离线交付并导入，详见正式构建报告。

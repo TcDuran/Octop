@@ -61,7 +61,7 @@ docker buildx build \
 | 分片方式 | 每片 32 MiB，共 37 片，文件后缀 `.part000` 至 `.part036` |
 | 校验清单 | `SHA256SUMS.parts`、`SHA256SUMS.archive`，均已上传 |
 | 校验结果 | 37 片 SHA-256 全部通过；合并后 SHA-256 与本地一致；`gzip -t` 通过 |
-| 远端 Docker 操作 | 已执行 `docker load`，ID 与本地一致；正式应用已启动，health/schema/重启持久化通过；Nginx 接入仍未执行 |
+| 远端 Docker 操作 | 已执行 `docker load`，ID 与本地一致；应用 health/schema/重启持久化通过；Nginx 已追加 `/octop/` 路由并 reload，外网入口验收通过，首次管理员与业务验收待完成 |
 
 本地使用 `docker save octop-opengauss:main-ee6f5c7d | gzip -1` 生成归档后分片，再使用 Spug 的上传文件入口逐个上传到上述独立目录。远端校验、合并命令如下；仅适用于本次文件集，已有完整归档时不得重复覆盖：
 

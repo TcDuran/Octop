@@ -1,6 +1,6 @@
 # AJ 环境 Octop 部署方案
 
-状态：数据库、正式镜像导入、Compose、`.env` 和应用数据目录已完成，并使用实际部署配置通过了正式镜像的只读连接验证。正式 Octop 应用已启动，健康、schema 和受控重启持久化验证通过；Nginx 尚未修改，首次管理员设置和完整业务验收待执行。后续步骤及 TLS 边界见操作记录和发布手册。
+状态：数据库、正式镜像、Compose、`.env` 和数据目录已完成；应用健康、schema 和重启持久化验证通过，Nginx `/octop/` 路由已接入并完成外网入口验收。当前页面为受密码保护的初始化向导，首次管理员设置和完整业务验收待执行。操作与备份路径见操作记录和发布手册。
 
 ## 方案结论
 
@@ -26,11 +26,11 @@ Agent Memory 的关系记忆和 checkpoint 继续使用现有 openGauss 后端�
 
 只读检查确认现有数据库容器为 `opengauss_test`，镜像标签 `opengauss:6.0.5`，运行容器 image ID 为 `sha256:ae937cb57c350ee69df21fff0dbea8db0122fd79f6128d5bddf65317cd945e55`，挂载 `/APP/DockerData/opengauss/test:/var/lib/opengauss`；默认 `bridge` 网关为 `172.17.0.1`，容器 IP 为 `172.17.0.2`，宿主机映射 `15434 -> 5432`。Nginx 容器同处默认 bridge，地址 `172.17.0.6`。默认 bridge 不应依赖容器名 DNS；后续方案使用 `172.17.0.1:15434` 连接，并让 Octop 的 `18088` 仅绑定 `172.17.0.1` 供 Nginx 访问。Octop 到数据库的 TCP 连通性已通过正式镜像和实际 Compose 配置只读验证。不得使用可能变化的数据库容器 IP，不得为此重建或重启现有 openGauss 容器，也不得新增公开数据库端口。
 
-Nginx 容器镜像为 `nginx:1.31.3`，配置从 `/APP/DockerData/nginx/conf` 挂载，AJ 配置文件为 `http_aj.conf`。宿主机 `8081 -> Nginx 80` 提供 HTTP；配置目前没有 `/octop/` 路由。用户提供的候选外部 URL 为 `http://211.137.76.3:8081/octop`。新增 Octop 只绑定 Docker bridge 网关 `172.17.0.1` 的专用端口 `18088`，供 Nginx 代理；Octop 到数据库的 TCP 连通性已验证；Nginx 到应用端口的访问待应用启动后验证。TLS 终止位置仍待确认，开放登录前必须确认外部入口的 TLS 边界。当前未发现 `18088` 监听；`/APP/DockerData/octop-aj` 下已准备发布归档、配置和独立 `data` 目录。
+Nginx 容器镜像为 `nginx:1.31.3`，配置目录从 `/APP/DockerData/nginx/conf` 挂载，主配置从 `/APP/DockerData/nginx/nginx.conf` 挂载。宿主机 `8081 -> Nginx 80` 提供 HTTP。2026-10-28 已在 `http_aj.conf` 中追加 `/octop/` 路由，并经配置测试后 reload；外部入口为 `http://211.137.76.3:8081/octop/`。Octop 仅监听 bridge 网关 `172.17.0.1:18088`，Nginx 到应用、应用到数据库和外网健康检查均通过；原 Spug/OA/BPM 响应保持一致。TLS 终止位置仍待确认，首次管理员与业务验收待完成。
 
 ## 配置内容
 
-Compose、现场连接参数、权限受限的 `.env` 和正式镜像已准备并核验；以下是配置边界，Nginx 接入尚未执行：
+Compose、现场连接参数、权限受限的 `.env` 和正式镜像已准备并核验，Nginx 路由已按下述配置边界实施：
 
 1. `docker/docker-compose.opengauss-aj.yml` 只定义 Octop 服务，连接现有 openGauss 的新 `octop` 数据库和账号。Compose 中不定义 openGauss 服务、不挂载或更改现有数据库目录。数据库网络名、地址和 Nginx 可达的 bridge gateway 地址须由现场只读检查确认。
 2. 将数据库口令保存在权限为 `0600` 的部署 `.env` 文件中，不纳入 Git。口令会作为环境变量传入容器，并可被有 Docker 管理权限的用户通过容器配置查看；若要求避免这一点，需要另行实现并审核 secret-file 读取支持。
@@ -41,7 +41,7 @@ Compose、现场连接参数、权限受限的 `.env` 和正式镜像已准备�
 
 ## 部署步骤
 
-以下是应用发布的后续执行顺序。数据库角色、数据库创建及驱动连接验证已完成，详见 [AJ_DEPLOYMENT_RECORD.md](AJ_DEPLOYMENT_RECORD.md)；不得重复创建或重置账号：
+以下是供后续环境参考的部署顺序。本次数据库、应用和 Nginx 接入已完成，详见 [AJ_DEPLOYMENT_RECORD.md](AJ_DEPLOYMENT_RECORD.md)；不得在当前环境重复创建或重置账号、覆盖已有配置：
 
 1. 只读确认现有 openGauss 容器、版本和镜像摘要、数据库连接网络/端口、磁盘和内存；确认 Octop 容器名、`18088` 端口和 `/APP/DockerData/octop-aj/data` 未被占用。复核 `octop` 库 owner 与最小权限账号，不再执行建库建角色。
 2. 创建 Octop 独立数据目录和权限受限的配置文件，部署单服务 Compose 与已审核的镜像；运行 Compose 配置检查后再启动 Octop 容器。
@@ -51,13 +51,15 @@ Compose、现场连接参数、权限受限的 `.env` 和正式镜像已准备�
 Nginx 路由建议如下；`172.17.0.1` 部署前须按现场 Docker 网络核实：
 
 ```nginx
-location = /octop { return 308 /octop/; }
+location = /octop { return 308 /octop/$is_args$args; }
 location ^~ /octop/ {
     proxy_pass http://172.17.0.1:18088/;
     proxy_http_version 1.1;
     proxy_set_header Upgrade $http_upgrade;
     proxy_set_header Connection "upgrade";
     proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
     proxy_set_header X-Forwarded-Host $http_host;
     proxy_buffering off;
@@ -85,4 +87,4 @@ location ^~ /octop/ {
 
 ## 放行条件
 
-应用发布前需确认：现有 openGauss 的实际网络/端口、口令配置文件权限、Octop 镜像提交号和摘要、品牌及 `/octop/` 子路径、TLS 终止位置、备份目标及恢复安排。数据库建库和账号连接结果见操作记录；生产应用容器、Nginx 路由、业务验收和备份恢复演练尚未实施。
+应用、数据库、Nginx 路由和基础入口验收已实施，备份及验证证据见操作记录。首次管理员设置、登录、业务验收和隔离备份恢复演练尚未完成；TLS 终止位置仍待确认。
