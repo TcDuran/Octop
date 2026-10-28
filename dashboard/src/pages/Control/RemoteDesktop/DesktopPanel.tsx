@@ -70,7 +70,7 @@ import {
   type DesktopResolution,
 } from "../../../utils/desktopViewport";
 import { sendDesktopAction } from "./desktopShortcuts";
-import { OctopEmptyMascot } from "../../../components/EmptyState";
+import { EmptyStateVisual } from "../../../components/EmptyState";
 import styles from "./DesktopPanel.module.less";
 
 const RESOLUTION_STORAGE_KEY = "octop:remote-desktop:resolution";
@@ -998,7 +998,7 @@ export default function DesktopPanel({
     "pageShell.desktop.subtitle",
     "查看并操控 Octop 主机操作系统桌面，远程完成桌面操作",
   );
-  const setupMascot = <OctopEmptyMascot />;
+  const setupMascot = <EmptyStateVisual />;
 
   if (user === null) {
     const loading = (

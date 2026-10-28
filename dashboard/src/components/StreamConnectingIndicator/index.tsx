@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
+import { Loader2 } from "lucide-react";
 import styles from "./StreamConnectingIndicator.module.less";
-
-const MASCOT_TYPE = `${import.meta.env.BASE_URL}octop-mascot-type.webp`;
 
 interface StreamConnectingIndicatorProps {
   /** Status line under the animation (e.g. 「连接中」). */
@@ -16,7 +15,7 @@ interface StreamConnectingIndicatorProps {
 
 /**
  * Shared connecting / waiting-frame indicator for remote browser & desktop.
- * Uses the same Octop mascot loop as chat thinking bubbles.
+ * Uses a neutral spinner so remote-control surfaces remain usable without media assets.
  */
 export default function StreamConnectingIndicator({
   label,
@@ -34,13 +33,7 @@ export default function StreamConnectingIndicator({
 
   return (
     <div className={rootClass}>
-      <img
-        className={styles.mascot}
-        src={MASCOT_TYPE}
-        alt=""
-        aria-hidden
-        draggable={false}
-      />
+      <Loader2 className={styles.indicator} aria-hidden />
       <div className={styles.label}>{label}</div>
       {hint ? <div className={styles.hint}>{hint}</div> : null}
     </div>

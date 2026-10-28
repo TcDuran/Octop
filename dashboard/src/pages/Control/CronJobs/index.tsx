@@ -25,7 +25,7 @@ import {
 import type { CronJobFormValues } from "./useCronJobs";
 import { useCardTableView } from "../../../hooks/useCardTableView";
 import { showConfirmModal } from "../../../utils/confirmModal";
-import { OctopEmptyMascot } from "../../../components/EmptyState";
+import { EmptyStateVisual } from "../../../components/EmptyState";
 import { ResizableTable } from "../../../components/ResizableTable";
 import PageShell from "../../../layouts/PageShell";
 import { useAgent } from "../../../context/AgentContext";
@@ -51,7 +51,7 @@ function CronJobsEmptyState({
   return (
     <div className={styles.emptyState}>
       <div className={styles.emptyStateIcon}>
-        <OctopEmptyMascot />
+        <EmptyStateVisual />
       </div>
       <h2 className={styles.emptyStateTitle}>{t("cronJobs.noJobs")}</h2>
       <p className={styles.emptyStateDesc}>{t("cronJobs.noJobsDesc")}</p>

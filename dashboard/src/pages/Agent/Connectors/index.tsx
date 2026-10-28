@@ -23,7 +23,7 @@ import { useSearchParams } from "react-router-dom";
 import PageShell from "../../../layouts/PageShell";
 import TabBar, { type TabBarItem } from "../../../components/TabLabel/TabBar";
 import StreamSetupGuide from "../../../components/StreamSetupGuide/StreamSetupGuide";
-import { OctopEmptyMascot } from "../../../components/EmptyState/OctopEmptyMascot";
+import { EmptyStateVisual } from "../../../components/EmptyState/EmptyStateVisual";
 import { ResourceVisibilityFields } from "../../../components/ResourceVisibilityFields";
 import { TextAssistBar } from "../../../components/TextAssistBar";
 import type { ResourceVisibilityMode } from "../../../api/modules/userGroups";
@@ -2482,7 +2482,7 @@ export default function ConnectorsPage() {
                   className={styles.emptyGuide}
                   wide
                   plain
-                  icon={<OctopEmptyMascot />}
+                  icon={<EmptyStateVisual />}
                   title={t("connectors.emptyGuideTitle")}
                   description={t("connectors.emptyGuideDesc")}
                   steps={[

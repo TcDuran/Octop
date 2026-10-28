@@ -61,7 +61,7 @@ import { TeamCard } from "./components/TeamCard";
 import { PublishedExpertCard } from "./components/PublishedExpertCard";
 import AgentExpertsTable from "./components/AgentExpertsTable";
 import ExpertMarketTab from "./components/ExpertMarketTab";
-import { OctopEmptyMascot } from "../../components/EmptyState";
+import { EmptyStateVisual } from "../../components/EmptyState";
 import { pickLocale } from "../../utils/localizedText";
 import { isOwnedExpert, ownedExperts } from "../../utils/sharedExpert";
 import {
@@ -475,7 +475,7 @@ export default function ExpertsPage() {
             className={styles.emptyGuide}
             wide
             plain
-            icon={<OctopEmptyMascot />}
+            icon={<EmptyStateVisual />}
             title={t("experts.emptyGuideTitle")}
             description={t("experts.emptyGuideDesc")}
             steps={[
@@ -674,7 +674,7 @@ export default function ExpertsPage() {
             className={styles.emptyGuide}
             wide
             plain
-            icon={<OctopEmptyMascot />}
+            icon={<EmptyStateVisual />}
             title={t("experts.teams.emptyGuideTitle")}
             description={t("experts.teams.emptyGuideDesc")}
             steps={[
@@ -820,7 +820,7 @@ export default function ExpertsPage() {
     if (experts.length === 0 && publishedExperts.length === 0) {
       return (
         <div className={styles.emptyState}>
-          <OctopEmptyMascot />
+          <EmptyStateVisual />
           <div className={styles.emptyTitle}>{t("experts.emptyLibrary")}</div>
           <div className={styles.emptyHint}>
             {t("experts.emptyLibraryHint")}

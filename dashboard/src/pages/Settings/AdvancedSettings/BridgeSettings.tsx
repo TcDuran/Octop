@@ -52,7 +52,7 @@ import {
   isUploadedAvatarUrl,
   ResourceAvatarPicker,
 } from "../../../components/AvatarPicker";
-import { OctopEmptyMascot } from "../../../components/EmptyState";
+import { EmptyStateVisual } from "../../../components/EmptyState";
 import { ResourceVisibilityFields } from "../../../components/ResourceVisibilityFields";
 import { ResourceAudienceFilter } from "../../../components/ResourceAudienceFilter";
 import {
@@ -1667,7 +1667,7 @@ export default function BridgeSettingsPanel({
           className={styles.emptyGuide}
           wide
           plain
-          icon={<OctopEmptyMascot />}
+          icon={<EmptyStateVisual />}
           title={t("advancedSettings.bridge.emptyTitle")}
           description={t("advancedSettings.bridge.emptyDesc")}
           steps={[
