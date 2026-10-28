@@ -1,7 +1,7 @@
-# AJ production deployment draft for review.
-# Place this file and a mode-0600 .env under /APP/DockerData/octop-aj/.
+# AJ production deployment configuration.
+# Place this file under /APP/DockerData/octop-aj/ and a mode-0600 .env in config/.
 # The .env must contain reviewed values for:
-#   OCTOP_IMAGE              immutable image reference using @sha256 digest
+#   OCTOP_IMAGE              immutable local image ID or reference using @sha256 digest
 #   OCTOP_DATABASE_NETWORK   existing network (AJ preflight: default bridge)
 #   OCTOP_DATABASE_HOST      verified host bridge gateway (AJ preflight: 172.17.0.1)
 #   OCTOP_DATABASE_PORT      existing host mapping (AJ preflight: 15434)
@@ -58,10 +58,5 @@ services:
       options:
         max-size: "50m"
         max-file: "5"
-    networks:
-      - opengauss
-
-networks:
-  opengauss:
-    name: ${OCTOP_DATABASE_NETWORK:?Set the verified existing openGauss Docker network}
-    external: true
+    # The existing default bridge does not support Compose service aliases.
+    network_mode: ${OCTOP_DATABASE_NETWORK:?Set the verified existing Docker network (AJ bridge)}

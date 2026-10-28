@@ -47,7 +47,7 @@ docker buildx build \
 
 ## 交付与部署约束
 
-2026-10-28 已通过 Spug 文件管理器将镜像离线归档上传至 `10.51.49.8`，完成分片及完整归档校验；归档尚未加载至远端 Docker，也未启动应用。后续生产 Compose 使用不可变镜像引用，不使用 `latest`。部署步骤、数据库边界、备份恢复和回滚要求见 [AJ_DEPLOYMENT_RUNBOOK.md](AJ_DEPLOYMENT_RUNBOOK.md)。
+2026-10-28 已通过 Spug 文件管理器将镜像离线归档上传至 `10.51.49.8`，完成分片及完整归档校验，并导入远端 Docker。镜像 ID 与本地一致；正式应用尚未启动。生产 Compose 已固定为该本地镜像 ID，设置 `pull_policy: never`。部署步骤、数据库边界、备份恢复和回滚要求见 [AJ_DEPLOYMENT_RUNBOOK.md](AJ_DEPLOYMENT_RUNBOOK.md)。
 
 ## 离线归档上传记录
 
@@ -61,7 +61,7 @@ docker buildx build \
 | 分片方式 | 每片 32 MiB，共 37 片，文件后缀 `.part000` 至 `.part036` |
 | 校验清单 | `SHA256SUMS.parts`、`SHA256SUMS.archive`，均已上传 |
 | 校验结果 | 37 片 SHA-256 全部通过；合并后 SHA-256 与本地一致；`gzip -t` 通过 |
-| 远端 Docker 操作 | 未执行 `docker load`、未创建或启动应用容器 |
+| 远端 Docker 操作 | 已执行 `docker load`，ID 与本地一致；通过临时容器完成驱动只读连接验证，容器已删除；正式应用未启动 |
 
 本地使用 `docker save octop-opengauss:main-ee6f5c7d | gzip -1` 生成归档后分片，再使用 Spug 的上传文件入口逐个上传到上述独立目录。远端校验、合并命令如下；仅适用于本次文件集，已有完整归档时不得重复覆盖：
 
@@ -76,3 +76,9 @@ gzip -t octop-opengauss-main-ee6f5c7d-20261028.tar.gz
 ```
 
 以上步骤已成功执行；分片和校验清单暂保留在同一发布目录，供后续核对。上传和合并仅新增本次发布文件，没有修改现有数据库、应用容器或 Nginx 配置。
+
+## 镜像导入与配置准备结果
+
+2026-10-28 再次核对归档 SHA-256 后执行 `docker load -i`，导入 `octop-opengauss:main-ee6f5c7d`。远端报告相同 image ID、`linux/amd64`，默认运行用户为空（root）；远端 Docker 26.0.2 报告大小为 `3,138,882,839` bytes，与本地 Docker 的存储大小统计略有差异，镜像身份以 image ID 为准。
+
+Compose 已配置 `network_mode: bridge`，避免默认 `bridge` 不支持 Compose 服务别名的问题。远端已通过 `docker compose config -q`，且从渲染结果核对了镜像 ID、`pull_policy: never`、数据库名和账号 `octop`、数据库端点、数据卷及仅绑定 `172.17.0.1:18088`。以该 Compose 配置运行临时 Python 驱动容器，只读连接返回 `octop|octop`，服务版本确认为 openGauss 6.0.5 build `5ba692ab`，`public` 基础表数量为 0，账号无管理权限；探针退出后已自动删除。正式应用没有运行，尚未执行 migrations。

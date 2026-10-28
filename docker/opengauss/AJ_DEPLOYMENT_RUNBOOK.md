@@ -1,6 +1,6 @@
 # AJ 环境 Octop 发布手册
 
-本手册记录 AJ 环境 Octop 的发布准备、部署、验收与回滚步骤，后续相同环境可按此复用。生产方案见 [DEPLOYMENT_AJ_CN.md](DEPLOYMENT_AJ_CN.md)，本次逐项操作流水见 [AJ_DEPLOYMENT_RECORD.md](AJ_DEPLOYMENT_RECORD.md)，Compose 草案为 [`docker-compose.opengauss-aj.yml`](../docker-compose.opengauss-aj.yml)。
+本手册记录 AJ 环境 Octop 的发布准备、部署、验收与回滚步骤，后续相同环境可按此复用。生产方案见 [DEPLOYMENT_AJ_CN.md](DEPLOYMENT_AJ_CN.md)，本次逐项操作流水见 [AJ_DEPLOYMENT_RECORD.md](AJ_DEPLOYMENT_RECORD.md)，部署配置为 [`docker-compose.opengauss-aj.yml`](../docker-compose.opengauss-aj.yml)。
 
 ## 安全边界
 
@@ -42,9 +42,9 @@ docker inspect --format '{{.Config.Image}} {{json .NetworkSettings.Networks}}' <
 - 现有数据库容器名 `opengauss_test`，镜像标签 `opengauss:6.0.5`，容器地址 `172.17.0.2`，宿主机端口映射 `15434 -> 5432`；数据挂载为 `/APP/DockerData/opengauss/test:/var/lib/opengauss`。容器实际 image ID 为 `sha256:ae937cb57c350ee69df21fff0dbea8db0122fd79f6128d5bddf65317cd945e55`，与本地已验证 `gs_dump`/`gs_restore` 的客户端来源镜像 ID 一致；该镜像没有 RepoDigest。容器内 `gs_ctl`/`gs_dump` 不在默认 PATH，未查询运行中服务的 build 字符串。现有容器、库和挂载均未触碰。
 - Nginx 容器镜像 `nginx:1.31.3`，位于同一默认 `bridge`，地址 `172.17.0.6`；配置目录挂载自 `/APP/DockerData/nginx/conf`，AJ 配置文件为 `http_aj.conf`。Nginx 当前 HTTP server 监听容器 `80`，主机通过 `8081 -> 80` 提供访问；配置含现有 `/spug/` 及 AJ 工作流路由，没有 `/octop/`。本次检查到的 Nginx listener 为 `80`、`8110`；未发现 `18088` 正在监听。
 - 默认 `bridge` 不应依赖容器名 DNS。独立 `octop` 库和角色已创建，并已通过同一 bridge 网络中的临时驱动容器，使用 `172.17.0.1:15434` 完成认证和只读连接验证。后续 Octop 的 `18088` 仍只绑定 `172.17.0.1` 供 Nginx 访问；不得连接 `172.17.0.2` 作为固定地址。
-- `/APP/DockerData/octop-aj` 与其 `data` 子目录在预检时不存在；截至本次记录，Octop 应用目录仍未创建。用户提供的候选外部访问 URL 为 `http://211.137.76.3:8081/octop`，与当前 Nginx HTTP 入口相符；TLS 终止位置仍需确认，开放 Octop 登录前必须确认该入口是否应提供 TLS。
+- `/APP/DockerData/octop-aj` 与其 `data` 子目录在预检时不存在；后续已完成独立数据目录和配置准备，详见本次操作记录。外部访问 URL 配置为 `http://211.137.76.3:8081/octop`，与当前 Nginx HTTP 入口相符；TLS 终止位置仍需确认，开放 Octop 登录前必须确认该入口是否应提供 TLS。
 
-因此现场应用发布前置条件仍未完全闭环：运行中服务 build 字符串及 TLS 终止位置仍待确认；数据库连通性已通过应用驱动只读验证。候选外部 URL 为 `http://211.137.76.3:8081/octop`。运行容器 image ID 已确认，但本地没有 RepoDigest。日志和 inspect 输出先检查是否含密钥再保存。
+因此现场应用发布前置条件仍未完全闭环：TLS 终止位置仍待确认；服务 build 字符串和数据库连通性已通过正式镜像的驱动只读查询确认。候选外部 URL 为 `http://211.137.76.3:8081/octop`。运行容器 image ID 已确认，但本地没有 RepoDigest。日志和 inspect 输出先检查是否含密钥再保存。
 
 ## 2. 构建与交付镜像
 
@@ -61,7 +61,7 @@ docker buildx build \
   -f docker/Dockerfile .
 ```
 
-只有在批准的镜像仓库已确认可用时才推送。若通过离线文件交付，使用单独审批过的方式生成镜像归档；传输后两端校验 SHA-256，再在目标机加载。生产 Compose 必须引用不可变镜像摘要，不能使用 `latest` 或可覆盖标签。
+只有在批准的镜像仓库已确认可用时才推送。若通过离线文件交付，生成镜像归档并在传输两端校验 SHA-256，再在目标机加载。生产 Compose 必须引用不可变镜像：仓库交付使用 `仓库@sha256:...`，离线 `docker load` 交付可直接使用核对过的本地 `sha256:...` image ID，并设置 `pull_policy: never`。不能使用 `latest` 或可覆盖标签。
 
 验证构建参数、镜像架构、PLAT 品牌、`/octop/` 静态资源、`gs_dump`/`gs_restore` 版本和 `/api/health`。镜像中的 openGauss 镜像仅用于构建阶段复制匹配版本的客户端工具；它不会作为数据库容器运行。
 
@@ -93,7 +93,7 @@ CREATE DATABASE octop OWNER octop ENCODING 'UTF8' TEMPLATE template0;
 在 `/APP/DockerData/octop-aj/` 放置 Compose 文件；账号口令和其他环境配置单独放在 `config/.env`。目录设为 `0700`、文件设为 `0600`。必填配置：
 
 ```dotenv
-OCTOP_IMAGE=<不可变镜像摘要引用>
+OCTOP_IMAGE=<核对过的本地 image ID 或仓库摘要引用>
 OCTOP_DATABASE_NETWORK=bridge
 OCTOP_DATABASE_HOST=172.17.0.1
 OCTOP_DATABASE_PORT=15434
@@ -106,6 +106,20 @@ OCTOP_PUBLIC_BASE_URL=http://211.137.76.3:8081/octop
 
 TLS 边界确认后再确定公开 URL 使用 `http` 还是 `https`。口令只写入权限为 `0600` 的 `config/.env`，不进仓库、命令行参数或记录页；运行 `docker compose --env-file config/.env config -q` 校验时避免输出渲染后的完整配置。
 设置 `/APP/DockerData/octop-aj/data` 的属主和权限前，先依据镜像运行用户确认目标值；不得更改现有 openGauss 数据目录权限。将 Compose 文件部署至该目录，运行 `docker compose config -q`；避免打印完整渲染配置。每项主机变更前后都要在记录页登记。
+
+AJ 使用默认 `bridge` 网络时，Compose 必须采用 `network_mode: ${OCTOP_DATABASE_NETWORK}`，不能以 `networks: ... external: true` 连接默认 bridge；后一种写法会附加服务别名，被 Docker 以 `network-scoped aliases are only supported for user-defined networks` 拒绝。当前部署配置已修正，并通过临时 Compose 驱动容器实际验证。
+
+配置解析通过后，使用正式镜像运行覆盖为 Python 的临时容器，进行只读数据库连接核验；不得调用 Octop 启动入口。查询 `current_user/current_database`、服务版本、角色权限和 `public` 表数量，并确认容器退出后删除。AJ 已完成该验证，结果为 `octop|octop`、openGauss 6.0.5 build `5ba692ab`，初始化前业务表数量为 0。验证所用命令为：
+
+```sh
+cd /APP/DockerData/octop-aj
+docker compose --env-file config/.env -f docker-compose.opengauss-aj.yml \
+  run --rm --no-deps -T --name octop-aj-preflight-20261028 \
+  --entrypoint python octop - \
+  < releases/main-ee6f5c7d-20261028/octop-aj-db-readonly-20261028.py
+```
+
+上述文件是本次发布目录中已核对摘要的只读脚本，具体查询和结果见操作记录；后续环境执行前须先核对脚本内容，不能把未审阅脚本作为探针运行。
 
 ## 4. 启动与 Nginx 接入
 
@@ -154,25 +168,26 @@ location ^~ /octop/ {
 ## 本次发布记录
 
 日期：2026-10-28（Asia/Shanghai）  
-状态：数据库准备完成；Octop 应用发布准备中。远端已创建独立 `octop` 角色和数据库并通过驱动连接验证；尚未在生产主机部署 Octop 容器或修改 Nginx。
+状态：数据库、镜像导入、Compose、`.env` 和独立数据目录准备完成；正式 Octop 应用尚未启动，Nginx 尚未修改。
 
 | 项目 | 记录 |
 | --- | --- |
-| 源码分支 / HEAD | `develop` / `1c009695`；当前工作区有未提交变更，不能作为正式发布源 |
-| 远端预检与数据库 | 主机/容器只读预检已完成；独立 `octop` 角色和数据库已创建，驱动只读连接成功；运行中服务 build 字符串和 TLS 终止位置待确认；候选 URL 为 `http://211.137.76.3:8081/octop` |
+| 镜像源码分支 / 提交 | `main` / `ee6f5c7d3e88b6830c17646e63a6706944886881`，从干净工作区构建 |
+| 远端预检与数据库 | 独立 `octop` 角色和数据库已创建，使用正式镜像及实际 Compose 配置只读连接成功；服务版本 6.0.5 build `5ba692ab`，`public` 基础表为 0；TLS 终止位置待确认 |
 | 质量检查 | Ruff、mypy、`npx tsc -b` 通过；`PYTEST_JOBS=4 make test` 为 `5,279 passed, 93 skipped`。默认 8 worker 全量运行时 `test_backup_deletion_excludes_maintenance_and_restore` 一次 5 秒等待超时，单独重跑通过 |
 | 镜像目标 | `linux/amd64`，`opengauss-runtime`，`VITE_BASE_PATH=/octop/`，`INSTALL_LOCAL_EMBEDDING=false` |
 | 本地构建 | 已完成；首次 container builder 因 Harbor IP 证书 SAN 不匹配失败；后续改用本地 Docker builder 与已有缓存镜像 |
-| 审核镜像 | `octop-opengauss-aj:review-20261028` |
-| 本地镜像 ID | `sha256:20bd8145bd26680c5690811b4708b1a84d71fc2772f75138fb1759aeddc09abc` |
-| 架构 / 镜像大小 | `linux/amd64` / 3,138,126,992 bytes |
+| 正式镜像 | `octop-opengauss:main-ee6f5c7d`，已离线导入远端 Docker |
+| 本地及远端镜像 ID | `sha256:906f34bdcb57f3356da1dc0b7d1c823f4f2e410c24ca8f229f302a39b1a6a576` |
+| 架构 / 镜像大小 | `linux/amd64` / 本地 3,138,821,813 bytes；远端统计见正式构建报告 |
 | openGauss 客户端来源 | 本地缓存镜像 `10.24.1.80:2443/library/opengauss:6.0.5`，ID `sha256:ae937cb57c350ee69df21fff0dbea8db0122fd79f6128d5bddf65317cd945e55`；远端运行容器 image ID 相同；客户端版本 6.0.5 build `5ba692ab` |
-| 本次工作区差异摘要 | `sha256:4b8209a28850db4e3debd50083bc82461ee7c1022d02a8bd329a9f1ee9a2e848`；工作区非 clean，仅供审核 |
+| Compose 与网络 | 已安装并校验，固定正式 image ID，`pull_policy: never`，`network_mode: bridge`，仅绑定 `172.17.0.1:18088` |
 | 镜像品牌 / 子路径 / 本地 embedding | 通过：PLAT 品牌、`/octop/`、未安装 `fastembed` |
 | PLAT 嵌入界面 | 候选前端包含隐藏 Agent Profile/工作区/浏览器入口及欢迎页吉祥物的本轮改动 |
 | 客户端验证 | `gs_dump` 与 `gs_restore` 均报告 openGauss 6.0.5 build `5ba692ab` |
-| 镜像摘要 / 归档校验值 | 尚无仓库 `RepoDigest`，未推送或导出归档 |
-| 生产数据库 / 容器 / Nginx | 已创建独立 `octop` 角色和空数据库并验证连接；未创建 Octop 应用目录或容器，未修改 Nginx，未在 `plat` 库执行 Octop DDL/DML |
+| 镜像摘要 / 归档校验值 | 无仓库 `RepoDigest`；归档 SHA-256 `99bd2891371da4e5ef8b1ad165afbc1cfe57421c07acf6c4c7c5dadd98737652`，远端分片、完整归档及 gzip 校验通过 |
+| 配置 / 数据目录 | `.env` 和 Compose 为 `0600`，`data` 为 root:root、`0700`；原口令保留，旧 `.env` 已在受限配置目录备份 |
+| 生产数据库 / 容器 / Nginx | 独立 `octop` 库和账号可连接；临时驱动容器已自动删除，正式应用未启动；现有 openGauss/Nginx 未重启，未在 `plat` 库执行 Octop DDL/DML |
 | 验收 / 备份恢复 | 未执行 |
 
-构建补充：首次使用 `octop-amd64-builder` 时因 Harbor 证书只含 DNS SAN、而 Dockerfile 用 IP 地址访问而失败；没有关闭 TLS 校验。第二次使用 `desktop-linux` 构建，复用了本机已有的 openGauss 6.0.5 缓存镜像作为客户端文件来源。远端运行容器的 image ID 与该本地镜像 ID 相同，确认客户端来源与当前数据库镜像文件完全一致；运行中的服务 build 字符串未直接查询。本次没有从生产主机拉取或启动 openGauss 镜像。审核镜像尚未成为正式发布物；本次正式镜像应在合并后的 `main` 上构建。
+构建补充：首次使用 `octop-amd64-builder` 时因 Harbor 证书只含 DNS SAN、而 Dockerfile 用 IP 地址访问而失败；没有关闭 TLS 校验。第二次使用 `desktop-linux` 构建，复用了本机已有的 openGauss 6.0.5 缓存镜像作为客户端文件来源。远端运行容器的 image ID 与该本地镜像 ID 相同，确认客户端来源与当前数据库镜像文件完全一致；运行中的服务 build 字符串未直接查询。本次没有从生产主机拉取或启动 openGauss 镜像。候选镜像仅作审核；正式镜像已在合并后的 `main` 提交 `ee6f5c7d` 上构建、离线交付并导入，详见正式构建报告。

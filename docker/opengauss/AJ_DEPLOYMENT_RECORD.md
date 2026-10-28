@@ -70,9 +70,9 @@ FROM pg_roles WHERE rolname IN ('omm', 'plat', 'octop');
 
 | 序号 | 操作 | 执行前状态 | 时间 / 操作人 | 结果 / 证据 | 回滚或后续动作 |
 | --- | --- | --- | --- | --- | --- |
-| APP-01 | 创建 `/APP/DockerData/octop-aj/` 和独立数据目录 | 未执行 |  |  | 只允许操作本次专用路径 |
-| APP-02 | 安装单应用 Compose 与权限受限 `.env` | 未执行 |  |  | `.env` 不复制进记录/工单 |
-| APP-03 | `docker compose config -q` 校验 | 未执行 |  |  | 禁止留存会展开密钥的配置输出 |
+| APP-01 | 创建 `/APP/DockerData/octop-aj/` 和独立数据目录 | 已完成 | 2026-10-28 / Codex | `data` 为 root:root、`0700`；镜像默认以 root 运行 | 只操作本次专用路径 |
+| APP-02 | 安装单应用 Compose 与权限受限 `.env` | 已完成 | 2026-10-28 / Codex | Compose 及 `.env` 均为 `0600`；保留既有数据库口令，新增配置值；旧 `.env` 已备份 | 备份位于 `config/.env.before-prepare-20261028T155427`，权限 `0600` |
+| APP-03 | `docker compose config -q` 校验 | 已完成 | 2026-10-28 / Codex | 渲染配置校验通过；实际 Compose 临时驱动探针只读连接新库成功 | 未打印密钥或完整渲染配置，未启动正式应用 |
 | APP-04 | 启动 `octop-opengauss-aj` | 未执行 |  |  | 停止新容器，保留数据和数据库 |
 | APP-05 | 健康、登录、数据持久化验收 | 未执行 |  |  | 失败则撤销入口并停止新容器 |
 | NGINX-01 | 备份并追加 `/octop/` 路由 | 未执行 |  |  | 恢复本次修改前配置 |
@@ -103,6 +103,19 @@ FROM pg_roles WHERE rolname IN ('omm', 'plat', 'octop');
 | IMAGE-01 | 导出正式镜像、压缩并生成校验清单 | 2026-10-28 / Codex | 归档 `1,213,336,901` bytes；SHA-256 为 `99bd2891371da4e5ef8b1ad165afbc1cfe57421c07acf6c4c7c5dadd98737652` |
 | IMAGE-02 | 建立独立发布目录并通过 Spug 上传文件 | 2026-10-28 / Codex | 新目录 `/APP/DockerData/octop-aj/releases/main-ee6f5c7d-20261028/` 权限 `0700`；37 个 32 MiB 以内的分片及两份校验清单上传完成 |
 | IMAGE-03 | 远端逐片校验、合并、完整归档校验 | 2026-10-28 / Codex | 37 片 SHA-256 全部通过；完整归档与本地 SHA-256 一致；`gzip -t` 通过；归档权限 `0600` |
-| IMAGE-04 | 导入镜像、启动 Octop、接入 Nginx | 未执行 | 本次仅上传与验证离线归档，没有执行 `docker load`、创建应用容器或修改 Nginx/数据库 |
+| IMAGE-04 | 导入镜像 | 2026-10-28 / Codex | 再次校验归档后执行 `docker load`；image ID 与本地正式镜像完全一致；正式应用和 Nginx 接入仍未执行 |
 
 归档文件位于上述发布目录，文件名为 `octop-opengauss-main-ee6f5c7d-20261028.tar.gz`。分片与校验清单暂保留。完整步骤和校验值见 [FORMAL_IMAGE_BUILD_REPORT.md](FORMAL_IMAGE_BUILD_REPORT.md)。
+
+## 启动前配置与连接核验
+
+2026-10-28 完成以下步骤，尚未启动正式 Octop 应用：
+
+1. 上传修订后的 Compose 到发布目录，SHA-256 为 `be6747c88789c20c91cf26284e48151e01c41d7559dd0304878adb2a7c81f701`，然后安装到 `/APP/DockerData/octop-aj/docker-compose.opengauss-aj.yml`。仅将网络声明改为 `network_mode: bridge`；默认 bridge 不支持 Compose 服务别名的问题已在本地 Docker 复现。应用镜像无需重建。
+2. 先以 `0600` 备份旧 `.env`，保留原数据库口令，原子更新非敏感配置值；`OCTOP_IMAGE` 固定为正式 image ID，数据库端点为 `172.17.0.1:15434`、库和账号均为 `octop`，公开入口配置为 `http://211.137.76.3:8081/octop`。
+3. 创建 `/APP/DockerData/octop-aj/data`，root:root、`0700`；现有 `config` 目录为 `0700`，`.env`、备份和 Compose 为 `0600`。
+4. 执行 `docker compose --env-file config/.env -f docker-compose.opengauss-aj.yml config -q`，并在内存中核对渲染配置，只输出断言结果；镜像 ID、`pull_policy: never`、网络、数据库、入口、`172.17.0.1:18088` 绑定和数据卷均正确。
+5. 使用该 Compose 运行 `--rm --no-deps -T --entrypoint python` 临时容器 `octop-aj-preflight-20261028`，执行 `BEGIN READ ONLY` 下的身份、版本、表数量和角色属性查询。结果为 `octop|octop`、openGauss 6.0.5 build `5ba692ab`、`public` 基础表数量 0、无 superuser/createdb/createrole 权限；事务已回滚，容器已自动删除。未执行 Octop 入口或 migrations。
+6. 复核 `docker ps -a --filter name=octop` 没有残留 Octop 容器，`18088` 没有监听。现有 `opengauss_test` 的启动时间仍为 `2026-10-09T06:51:35.736230935Z`，Nginx 仍为 `2026-10-12T01:55:52.518555208Z`，均未重启。
+
+本次准备脚本 `octop-aj-prepare-20261028.py` 与只读探针 `octop-aj-db-readonly-20261028.py` 保存在远端该发布目录；两者不包含凭据，SHA-256 分别为 `6d5941c8fbc3386ff829dd5ebcdb097c8109cdcef0b2bf9c913713b869c15127`、`1302cef40ddb5baa5f04323f3b904d051078114573c03e8d419bf9834df362f2`。准备脚本要求数据目录尚不存在，禁止在当前环境重复执行。后续步骤是备份新库后启动 Octop、检查初始化，再接入 Nginx；这些步骤本阶段未执行。

@@ -1,6 +1,6 @@
 # AJ 环境 Octop 部署方案
 
-状态：数据库准备已完成，Octop 应用发布尚未实施。远端已创建独立 `octop` 角色和数据库，并完成驱动连接验证；尚未启动 Octop 容器、创建应用数据目录或修改 Nginx。后续发布前仍须复核主机资源、网络和 TLS 边界。
+状态：数据库、正式镜像导入、Compose、`.env` 和应用数据目录已准备完成，并使用实际部署配置通过了正式镜像的只读连接验证。正式 Octop 应用尚未启动，Nginx 尚未修改；后续步骤及 TLS 边界见操作记录和发布手册。
 
 ## 方案结论
 
@@ -24,13 +24,13 @@ Agent Memory 的关系记忆和 checkpoint 继续使用现有 openGauss 后端�
 
 新增 Octop 数据目录为 `/APP/DockerData/octop-aj/data`，不复用 `/APP/DockerData/opengauss/test`。现有 openGauss 容器及其数据目录、配置、监听端口保持原样。
 
-只读检查确认现有数据库容器为 `opengauss_test`，镜像标签 `opengauss:6.0.5`，运行容器 image ID 为 `sha256:ae937cb57c350ee69df21fff0dbea8db0122fd79f6128d5bddf65317cd945e55`，挂载 `/APP/DockerData/opengauss/test:/var/lib/opengauss`；默认 `bridge` 网关为 `172.17.0.1`，容器 IP 为 `172.17.0.2`，宿主机映射 `15434 -> 5432`。Nginx 容器同处默认 bridge，地址 `172.17.0.6`。默认 bridge 不应依赖容器名 DNS；后续方案使用 `172.17.0.1:15434` 连接，并让 Octop 的 `18088` 仅绑定 `172.17.0.1` 供 Nginx 访问。Octop 到数据库的 TCP 连通性仍待只读验证。不得使用可能变化的数据库容器 IP，不得为此重建或重启现有 openGauss 容器，也不得新增公开数据库端口。
+只读检查确认现有数据库容器为 `opengauss_test`，镜像标签 `opengauss:6.0.5`，运行容器 image ID 为 `sha256:ae937cb57c350ee69df21fff0dbea8db0122fd79f6128d5bddf65317cd945e55`，挂载 `/APP/DockerData/opengauss/test:/var/lib/opengauss`；默认 `bridge` 网关为 `172.17.0.1`，容器 IP 为 `172.17.0.2`，宿主机映射 `15434 -> 5432`。Nginx 容器同处默认 bridge，地址 `172.17.0.6`。默认 bridge 不应依赖容器名 DNS；后续方案使用 `172.17.0.1:15434` 连接，并让 Octop 的 `18088` 仅绑定 `172.17.0.1` 供 Nginx 访问。Octop 到数据库的 TCP 连通性已通过正式镜像和实际 Compose 配置只读验证。不得使用可能变化的数据库容器 IP，不得为此重建或重启现有 openGauss 容器，也不得新增公开数据库端口。
 
-Nginx 容器镜像为 `nginx:1.31.3`，配置从 `/APP/DockerData/nginx/conf` 挂载，AJ 配置文件为 `http_aj.conf`。宿主机 `8081 -> Nginx 80` 提供 HTTP；配置目前没有 `/octop/` 路由。用户提供的候选外部 URL 为 `http://211.137.76.3:8081/octop`。新增 Octop 只绑定 Docker bridge 网关 `172.17.0.1` 的专用端口 `18088`，供 Nginx 代理；Nginx 到该地址的连通性及 Octop 到数据库的 TCP 连通性须在启动前验证。TLS 终止位置仍待确认，开放登录前必须确认外部入口的 TLS 边界。当前未发现 `18088` 监听；`/APP/DockerData/octop-aj` 目录尚不存在。
+Nginx 容器镜像为 `nginx:1.31.3`，配置从 `/APP/DockerData/nginx/conf` 挂载，AJ 配置文件为 `http_aj.conf`。宿主机 `8081 -> Nginx 80` 提供 HTTP；配置目前没有 `/octop/` 路由。用户提供的候选外部 URL 为 `http://211.137.76.3:8081/octop`。新增 Octop 只绑定 Docker bridge 网关 `172.17.0.1` 的专用端口 `18088`，供 Nginx 代理；Octop 到数据库的 TCP 连通性已验证；Nginx 到应用端口的访问待应用启动后验证。TLS 终止位置仍待确认，开放登录前必须确认外部入口的 TLS 边界。当前未发现 `18088` 监听；`/APP/DockerData/octop-aj` 下已准备发布归档、配置和独立 `data` 目录。
 
-## 后续配置内容
+## 配置内容
 
-Compose 草案已按本方案准备，现场网络和入口参数仍是必填项；审核通过并完成只读复核后再补齐真实部署配置，不在当前阶段执行：
+Compose、现场连接参数、权限受限的 `.env` 和正式镜像已准备并核验；以下是配置边界，Nginx 接入尚未执行：
 
 1. `docker/docker-compose.opengauss-aj.yml` 只定义 Octop 服务，连接现有 openGauss 的新 `octop` 数据库和账号。Compose 中不定义 openGauss 服务、不挂载或更改现有数据库目录。数据库网络名、地址和 Nginx 可达的 bridge gateway 地址须由现场只读检查确认。
 2. 将数据库口令保存在权限为 `0600` 的部署 `.env` 文件中，不纳入 Git。口令会作为环境变量传入容器，并可被有 Docker 管理权限的用户通过容器配置查看；若要求避免这一点，需要另行实现并审核 secret-file 读取支持。
