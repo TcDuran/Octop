@@ -1,6 +1,8 @@
 # 独立开发环境；完成 openGauss 适配和初始化验收后使用。
 # 在 worktree 根目录执行（凭证只从本地忽略文件载入）：
 #   ( source .env.opengauss; docker compose -f docker/docker-compose.opengauss-local.yml up -d --build )
+# The local openGauss app uses host port 18088 so it can run beside the
+# ordinary Octop compose service on host port 8088.
 name: octop-opengauss
 
 services:
@@ -13,7 +15,7 @@ services:
     image: octop-opengauss:dev
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8088:8088"
+      - "127.0.0.1:18088:8088"
     volumes:
       - ../data/opengauss:/data/.octop
     environment:

@@ -30,6 +30,7 @@ import { TextAssistBar } from "../../../components/TextAssistBar";
 import {
   avatarPickerStyles,
   expertPresetSrc,
+  expertPresetPath,
 } from "../../../components/AvatarPicker";
 import ExpertColorPicker from "../../../components/ExpertColorPicker";
 import AgentTrajectoryField from "./AgentTrajectoryField";
@@ -546,7 +547,7 @@ export default function CreateFromExpertDrawer({
           await request(`/agents/${body.agent_id}`, {
             method: "PATCH",
             body: JSON.stringify({
-              icon_url: expertPresetSrc(avatarPresetId ?? "default"),
+              icon_url: expertPresetPath(avatarPresetId ?? "default"),
             }),
           });
         } catch {

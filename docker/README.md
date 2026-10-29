@@ -13,10 +13,17 @@ This directory contains the Docker build and deployment assets for Octop.
 | `docker_build.sh` | Build image from source (BuildKit cache enabled by default) |
 | `docker-compose.yml` | One-command local / self-hosted deployment |
 | `docker-compose.cn.yml` | Same stack, pulls `ghcr.nju.edu.cn/tencentcloud/octop:latest` (no local build) |
-| `docker-compose.postgres.yml` | PostgreSQL (+ pgvector) for dual-backend dev/tests |
-| `docker-compose-odc-postgres.yml` | ODC production Compose using a dedicated PostgreSQL database and external network |
+| `docker-compose-odc-postgres.yml` | ODC production Compose using an external, dedicated PostgreSQL database |
+| `docker-compose.opengauss-local.yml` | Isolated openGauss development; external database, host port `18088` |
+| `docker-compose.opengauss-aj.yml` | AJ production Compose using an external openGauss database |
+| `docker-compose.oidc-local.yml` | Optional PLAT OIDC loopback overlay for local development |
+| `docker-compose.mobile.yml` | Optional remote-phone / DinD development stack |
 | `postgres/init-vector.sql` | Instance-level `CREATE EXTENSION vector` (initdb.d; **not** Octop migrations) |
 | `docker-entrypoint.sh` | Container entrypoint: first-run init + start server |
+
+Database services are external to these Compose files. The default stack uses
+SQLite unless database settings select an external PostgreSQL instance; the
+openGauss files connect to an existing openGauss instance and do not start one.
 
 ### Quick start
 

@@ -14,8 +14,15 @@
 | `docker-compose.yml` | 本地开发 / 自托管一键启动 |
 | `docker-compose.cn.yml` | 同一套服务，拉取 `ghcr.nju.edu.cn/tencentcloud/octop:latest`（不本地构建） |
 | `docker-compose-odc-postgres.yml` | ODC 生产 Compose：复用外部 PostgreSQL 网络，使用独立 `octop` 库/账号，不启动或访问 `plat` 库 |
+| `docker-compose.opengauss-local.yml` | 隔离的 openGauss 本地开发，连接外部数据库，主机端口 `18088` |
+| `docker-compose.opengauss-aj.yml` | AJ 生产 Compose，连接外部 openGauss 数据库 |
+| `docker-compose.oidc-local.yml` | 本地 PLAT OIDC 回环转发 overlay（可选） |
+| `docker-compose.mobile.yml` | 远程手机 / DinD 开发专用 Compose（可选） |
 | `postgres/init-vector.sql` | 实例级 `CREATE EXTENSION vector`（initdb.d；**不**进 Octop 迁移） |
 | `docker-entrypoint.sh` | 容器入口：首次初始化数据库并启动服务 |
+
+这些 Compose 文件都不启动 PostgreSQL 或 openGauss 数据库服务。默认配置使用 SQLite；
+需要 PostgreSQL 或 openGauss 时，通过环境变量连接已有的外部数据库实例。
 
 ### 快速开始
 

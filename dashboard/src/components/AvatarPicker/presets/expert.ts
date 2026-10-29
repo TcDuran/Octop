@@ -1,4 +1,5 @@
 import type { AvatarPreset } from "../types";
+import { publicUrl } from "../../../utils/publicUrl";
 
 /** Bundled expert cartoon stems under ``public/experts/avatars/``. */
 const EXPERT_PORTRAIT_IDS = [
@@ -23,8 +24,12 @@ const EXPERT_PORTRAIT_IDS = [
   "parenting-companion",
 ] as const;
 
-export function expertPresetSrc(id: string): string {
+export function expertPresetPath(id: string): string {
   return `/experts/avatars/${id}.svg`;
+}
+
+export function expertPresetSrc(id: string): string {
+  return publicUrl(expertPresetPath(id));
 }
 
 /** Prefabricated expert portraits; first tile is the bundled default portrait. */

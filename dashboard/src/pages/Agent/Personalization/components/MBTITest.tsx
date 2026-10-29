@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
 import api from "../../../../api";
 import type { MBTITestQuestion, MBTIType } from "../../../../api/types";
 import styles from "./MBTITest.module.less";
+import { publicUrl } from "../../../../utils/publicUrl";
 
 type Stage = "intro" | "questions" | "result";
 
@@ -61,7 +62,7 @@ function ResultCard({
       >
         <img
           className={styles.resultAvatar}
-          src={`/assets/mbti/${code}.svg`}
+          src={publicUrl(`assets/mbti/${code}.svg`)}
           alt={code}
         />
         <div className={styles.resultCode}>{code}</div>

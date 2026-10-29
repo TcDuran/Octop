@@ -12,6 +12,7 @@ import {
   useSkillDisplayName,
 } from "../../Agent/Skills/skillDisplayNames";
 import styles from "../index.module.less";
+import { useLayoutMode } from "../../../context/LayoutModeContext";
 
 interface SkillPickerPopoverProps {
   skills: SkillSpec[];
@@ -63,6 +64,7 @@ export default function SkillPickerPopover({
 }: SkillPickerPopoverProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { isPlatEmbedded } = useLayoutMode();
   const skillDisplayName = useSkillDisplayName();
   const activeSet = useMemo(() => {
     const set = new Set<string>();
@@ -76,11 +78,14 @@ export default function SkillPickerPopover({
   const enabledSkills = useMemo(
     () =>
       skills
-        .filter((skill) => skill.enabled)
+        .filter(
+          (skill) =>
+            skill.enabled && (!isPlatEmbedded || skill.kind !== "builtin"),
+        )
         .sort(
           (a, b) => skillPickerKindRank(a.kind) - skillPickerKindRank(b.kind),
         ),
-    [skills],
+    [isPlatEmbedded, skills],
   );
 
   const filterFn = useCallback(

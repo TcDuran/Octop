@@ -8,6 +8,7 @@ import SearchablePickerPanel, {
 } from "../../../components/ChatPicker/SearchablePickerPanel";
 import { ConnectorLogo } from "../../Agent/Connectors/connectorDefs";
 import styles from "../index.module.less";
+import { useLayoutMode } from "../../../context/LayoutModeContext";
 
 export interface ChatConnectorOption {
   mcp_server_name: string;
@@ -31,6 +32,7 @@ export default function ConnectorPickerPopover({
 }: ConnectorPickerPopoverProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { isPlatEmbedded } = useLayoutMode();
 
   const filterFn = useCallback(
     (connector: ChatConnectorOption, query: string) =>
@@ -49,6 +51,7 @@ export default function ConnectorPickerPopover({
       width="narrow"
       footerIcon={<Settings2 size={15} aria-hidden />}
       footerLabel={t("connectors.manageConnectors")}
+      showFooter={!isPlatEmbedded}
       onFooterClick={() => {
         onNavigateAway?.();
         navigate("/connectors");

@@ -15,6 +15,7 @@ import { useAgent } from "../../../context/AgentContext";
 import { useIsMobile } from "../../../hooks/useIsMobile";
 import { usePathTabs } from "../../../hooks/usePathTabs";
 import { useCurrentUser } from "../../../hooks/useCurrentUser";
+import { useLayoutMode } from "../../../context/LayoutModeContext";
 import {
   PERSONALIZATION_TAB_PERMISSIONS,
   userCanKey,
@@ -61,6 +62,7 @@ const TAB_ICONS = {
 export default function PersonalizationPage() {
   const { t } = useTranslation();
   const isMobile = useIsMobile();
+  const { isPlatEmbedded } = useLayoutMode();
   const user = useCurrentUser();
   const { activeAgentId, agents } = useAgent();
   const activeAgent = agents.find((a) => a.agent_id === activeAgentId);
@@ -69,12 +71,16 @@ export default function PersonalizationPage() {
       userCanKey(user, PERSONALIZATION_TAB_PERMISSIONS[tab]),
     [user],
   );
-  const defaultTab =
-    PERSONALIZATION_TABS.find((tab) => isAllowed(tab)) ?? "skills";
+  const visibleTabs = useMemo(
+    () =>
+      PERSONALIZATION_TABS.filter((tab) => !isPlatEmbedded || tab === "skills"),
+    [isPlatEmbedded],
+  );
+  const defaultTab = visibleTabs.find((tab) => isAllowed(tab)) ?? "skills";
 
   const { activeTab, handleTabChange, isMounted } = usePathTabs({
     basePath: "/personalization",
-    tabs: PERSONALIZATION_TABS,
+    tabs: visibleTabs,
     storageKey: "octop:personalization:tab",
     defaultTab,
     isAllowed,
@@ -84,18 +90,18 @@ export default function PersonalizationPage() {
     () => ({
       value: activeTab,
       onChange: handleTabChange,
-      options: PERSONALIZATION_TABS.filter((value) => isAllowed(value)).map(
-        (value) => {
+      options: visibleTabs
+        .filter((value) => isAllowed(value))
+        .map((value) => {
           const Icon = TAB_ICONS[value];
           return {
             value,
             label: t(`personalization.tabs.${value}`),
             icon: <Icon size={14} strokeWidth={2} />,
           };
-        },
-      ),
+        }),
     }),
-    [activeTab, handleTabChange, isAllowed, t],
+    [activeTab, handleTabChange, isAllowed, t, visibleTabs],
   );
 
   const pageTitle = `${t("personalization.title")} / ${t(

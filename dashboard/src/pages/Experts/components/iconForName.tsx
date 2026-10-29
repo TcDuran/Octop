@@ -59,6 +59,7 @@ import {
 } from "lucide-react";
 import { useAuthImageSrc } from "../../../hooks/useAuthImageSrc";
 import { needsAuthBlobFetch } from "../../../utils/toolMediaBlocks";
+import { publicUrl } from "../../../utils/publicUrl";
 
 const iconMap: Record<string, (size: number) => ReactNode> = {
   sparkles: (size) => <Sparkles size={size} />,
@@ -180,6 +181,9 @@ export function resolveExpertAvatarUrl(iconUrl?: string | null): string | null {
   if (!url) return null;
   if (url.startsWith("/api/agents/")) {
     return normalizeAgentScopedApiUrl(url);
+  }
+  if (url.startsWith("/experts/avatars/")) {
+    return publicUrl(url.slice(1));
   }
   return url;
 }

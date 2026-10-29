@@ -26,7 +26,7 @@
 
 | 配置 | 用途与端口 | 数据目录 |
 | --- | --- | --- |
-| [`docker-compose.opengauss-local.yml`](../docker-compose.opengauss-local.yml) | 本地开发，Compose 项目名 `octop-opengauss`，绑定 `127.0.0.1:8088` | 仓库 `data/opengauss` |
+| [`docker-compose.opengauss-local.yml`](../docker-compose.opengauss-local.yml) | 本地开发，Compose 项目名 `octop-opengauss`，绑定 `127.0.0.1:18088` | 仓库 `data/opengauss` |
 | [`docker-compose.opengauss-aj.yml`](../docker-compose.opengauss-aj.yml) | AJ 生产，容器 `octop-opengauss-aj`，绑定 `172.17.0.1:18088`，经现有 Nginx 的 8081 入口访问 | `/APP/DockerData/octop-aj/data` |
 
 两份配置都只运行 Octop，连接各自配置的现有 openGauss。AJ 的账号和配置保存在 `/APP/DockerData/octop-aj/config/.env`，目录 `0700`、文件 `0600`；本地凭证通过忽略的环境文件载入，不写入镜像或仓库。

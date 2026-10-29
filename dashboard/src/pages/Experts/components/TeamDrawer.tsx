@@ -11,6 +11,7 @@ import {
 import { octopAgentsApi } from "../../../api/modules/octopAgents";
 import {
   avatarPickerStyles,
+  expertPresetPath,
   expertPresetSrc,
   isUploadedAvatarUrl,
   ResourceAvatarPicker,
@@ -27,7 +28,7 @@ import {
   defaultModelToForm,
   MODEL_AUTO_VALUE,
 } from "../../../utils/modelOptions";
-import { TEAM_AVATAR_URL, TEAM_ICON_NAME } from "../../../utils/teamAgent";
+import { TEAM_AVATAR_PATH, TEAM_ICON_NAME } from "../../../utils/teamAgent";
 import ExpertAgentAvatar from "../../Chat/components/ExpertAgentAvatar";
 import { metaForFile } from "./iconForName";
 import TeamMemberPicker, {
@@ -69,7 +70,7 @@ export default function TeamDrawer({
   const [templateFiles, setTemplateFiles] = useState<TeamTemplateFile[]>([]);
   const [templateLoading, setTemplateLoading] = useState(false);
   const [rosterExtras, setRosterExtras] = useState<TeamMemberOption[]>([]);
-  const [iconUrl, setIconUrl] = useState<string | null>(TEAM_AVATAR_URL);
+  const [iconUrl, setIconUrl] = useState<string | null>(TEAM_AVATAR_PATH);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const pickerExperts = useMemo(
@@ -90,7 +91,7 @@ export default function TeamDrawer({
         welcome_message: team.welcome_message ?? "",
         member_ids: team.member_ids ?? [],
       });
-      setIconUrl(team.icon_url?.trim() || TEAM_AVATAR_URL);
+      setIconUrl(team.icon_url?.trim() || TEAM_AVATAR_PATH);
       setAvatarFile(null);
       let cancelled = false;
       void teamsApi
@@ -104,7 +105,7 @@ export default function TeamDrawer({
             welcome_message: record.welcome_message ?? "",
             member_ids: record.members.map((member) => member.agent_id),
           });
-          setIconUrl(record.icon_url?.trim() || TEAM_AVATAR_URL);
+          setIconUrl(record.icon_url?.trim() || TEAM_AVATAR_PATH);
           setRosterExtras(
             record.members.map((member) => ({
               agent_id: member.agent_id,
@@ -132,7 +133,7 @@ export default function TeamDrawer({
       welcome_message: t("experts.teams.welcomeDefault"),
       member_ids: [],
     });
-    setIconUrl(TEAM_AVATAR_URL);
+    setIconUrl(TEAM_AVATAR_PATH);
     setAvatarFile(null);
     setRosterExtras([]);
   }, [form, mode, open, t, team]);
@@ -169,8 +170,8 @@ export default function TeamDrawer({
       default_model: defaultModelFromForm(values.default_model),
       icon_name: TEAM_ICON_NAME,
       icon_url: avatarFile
-        ? TEAM_AVATAR_URL
-        : iconUrl?.trim() || TEAM_AVATAR_URL,
+        ? TEAM_AVATAR_PATH
+        : iconUrl?.trim() || TEAM_AVATAR_PATH,
       welcome_message: values.welcome_message?.trim() || null,
       member_ids: selectedRosterIds(values.member_ids, pickerExperts),
     };
@@ -290,7 +291,7 @@ export default function TeamDrawer({
             }}
             onSelectPreset={(id) => {
               void (async () => {
-                const nextUrl = id ? expertPresetSrc(id) : TEAM_AVATAR_URL;
+                const nextUrl = id ? expertPresetPath(id) : TEAM_AVATAR_PATH;
                 setAvatarFile(null);
                 if (mode === "edit" && team && isUploadedAvatarUrl(iconUrl)) {
                   setAvatarBusy(true);
@@ -330,7 +331,7 @@ export default function TeamDrawer({
                           setAvatarBusy(false);
                         }
                       }
-                      setIconUrl(TEAM_AVATAR_URL);
+                      setIconUrl(TEAM_AVATAR_PATH);
                     })();
                   }
                 : undefined

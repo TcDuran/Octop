@@ -18,6 +18,8 @@ interface SearchablePickerPanelProps<T> {
   footerIcon: ReactNode;
   footerLabel: string;
   onFooterClick: () => void;
+  /** Hide the management footer when the host application owns navigation. */
+  showFooter?: boolean;
   /** Soften the footer (e.g. remote-bridge “edit on peer” hint). */
   footerMuted?: boolean;
   /** Optional row(s) rendered between the list and the primary footer. */
@@ -36,6 +38,7 @@ export default function SearchablePickerPanel<T>({
   footerIcon,
   footerLabel,
   onFooterClick,
+  showFooter = true,
   footerMuted = false,
   beforeFooter,
 }: SearchablePickerPanelProps<T>) {
@@ -82,15 +85,19 @@ export default function SearchablePickerPanel<T>({
 
       {beforeFooter}
 
-      <button
-        type="button"
-        className={`${styles.footer} ${footerMuted ? styles.footerMuted : ""}`}
-        data-picker-footer=""
-        onClick={onFooterClick}
-      >
-        {footerIcon}
-        <span>{footerLabel}</span>
-      </button>
+      {showFooter ? (
+        <button
+          type="button"
+          className={`${styles.footer} ${
+            footerMuted ? styles.footerMuted : ""
+          }`}
+          data-picker-footer=""
+          onClick={onFooterClick}
+        >
+          {footerIcon}
+          <span>{footerLabel}</span>
+        </button>
+      ) : null}
     </div>
   );
 }

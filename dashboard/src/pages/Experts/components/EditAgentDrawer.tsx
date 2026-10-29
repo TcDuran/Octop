@@ -21,7 +21,7 @@ import { AgentAdvancedConfigFields } from "../../../components/AgentAdvancedConf
 import { TextAssistBar } from "../../../components/TextAssistBar";
 import {
   avatarPickerStyles,
-  expertPresetSrc,
+  expertPresetPath,
   isUploadedAvatarUrl,
 } from "../../../components/AvatarPicker";
 import ExpertColorPicker from "../../../components/ExpertColorPicker";
@@ -795,7 +795,7 @@ function EditAgentDrawerBody({
                         if (isUploadedAvatarUrl(iconUrl)) {
                           await octopAgentsApi.deleteAvatar(agent.agent_id);
                         }
-                        const nextUrl = expertPresetSrc(presetId ?? "default");
+                        const nextUrl = expertPresetPath(presetId ?? "default");
                         await request(`/agents/${agent.agent_id}`, {
                           method: "PATCH",
                           body: JSON.stringify({ icon_url: nextUrl }),

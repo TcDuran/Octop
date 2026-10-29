@@ -23,6 +23,7 @@ import { useSkills } from "../useSkills";
 import styles from "../index.module.less";
 import { useCurrentUser } from "../../../../hooks/useCurrentUser";
 import { userCan, userCanAny, PERM } from "../../../../utils/permissions";
+import { useLayoutMode } from "../../../../context/LayoutModeContext";
 
 type SkillsTab = "custom" | "builtin" | "skillhub" | "packages";
 
@@ -40,6 +41,7 @@ interface SkillsTabsProps {
 
 export default function SkillsTabs({ agentId }: SkillsTabsProps) {
   const { t } = useTranslation();
+  const { isPlatEmbedded } = useLayoutMode();
   const currentUser = useCurrentUser();
   // Hide the skill-packages tab for users without the `skill_packages` permission.
   const canSkillPackages = userCanAny(currentUser, PERM.skillPackages);
@@ -52,11 +54,18 @@ export default function SkillsTabs({ agentId }: SkillsTabsProps) {
     () =>
       SKILL_TABS.filter((tab) => {
         if (tab.key === "custom") return canCustom;
-        if (tab.key === "builtin") return canBuiltin;
-        if (tab.key === "skillhub") return canMarket;
+        if (tab.key === "builtin") return canBuiltin && !isPlatEmbedded;
+        if (tab.key === "skillhub") return canMarket && !isPlatEmbedded;
         return canSkillPackages && !remoteAgent;
       }),
-    [canBuiltin, canCustom, canMarket, canSkillPackages, remoteAgent],
+    [
+      canBuiltin,
+      canCustom,
+      canMarket,
+      canSkillPackages,
+      isPlatEmbedded,
+      remoteAgent,
+    ],
   );
   const resolvedTab = tabs.some((tab) => tab.key === activeTab)
     ? activeTab
