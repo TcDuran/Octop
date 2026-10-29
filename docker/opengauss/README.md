@@ -1,5 +1,17 @@
 # openGauss 部署与安装包
 
+## 文档入口与 AJ 部署状态
+
+| 文档 | 用途 |
+| --- | --- |
+| [AJ 部署方案](DEPLOYMENT_AJ_CN.md) | 容器、数据库、网络和存储边界 |
+| [AJ 发布手册](AJ_DEPLOYMENT_RUNBOOK.md) | 后续环境可复用的准备、部署、验证与回滚步骤 |
+| [AJ 操作记录](AJ_DEPLOYMENT_RECORD.md) | 本次实际执行结果、权限修复、备份路径和待验收项目 |
+| [正式镜像报告](FORMAL_IMAGE_BUILD_REPORT.md) | 源码提交、镜像 ID、构建参数与离线分片交付校验 |
+| [产品验证入口](validation/README.md) | 隔离测试库中的知识库、Memory 和恢复验证 |
+
+截至 2026-10-29：AJ 的独立 `octop` 数据库和账号、Octop 应用、Nginx `/octop/` 路由已部署。外网入口为 `http://211.137.76.3:8081/octop/`；健康、schema 25（36 张表）、重启持久化、308 跳转和 11 个页面资源验证通过。当前为受密码保护的初始化向导；首次管理员、登录后的聊天/WebSocket、Memory、知识库、业务 MCP 和隔离恢复演练尚未完成。GitHub `main` 已包含白标品牌提交 `868e7d15`，但 AJ 现运行镜像仍为旧提交 `ee6f5c7d`，需重新构建、验证并发布新镜像后才算完成现网品牌更新。TLS 终止位置仍待确认，不能把入口验收视为完整业务验收。
+
 ## 存储边界
 
 - 控制面、Memory 关系数据和会话检查点使用 openGauss。
@@ -10,9 +22,18 @@
 
 ## 源码与 Docker
 
-源码安装执行 uv sync --frozen。Docker 使用 docker/docker-compose.opengauss-local.yml，其容器名为 octop-opengauss，只绑定 127.0.0.1:18088，数据目录独立。凭证通过忽略的环境文件载入，不写入镜像或仓库。
+源码安装执行 `uv sync --frozen`。Docker 按用途选择配置：
+
+| 配置 | 用途与端口 | 数据目录 |
+| --- | --- | --- |
+| [`docker-compose.opengauss-local.yml`](../docker-compose.opengauss-local.yml) | 本地开发，Compose 项目名 `octop-opengauss`，绑定 `127.0.0.1:8088` | 仓库 `data/opengauss` |
+| [`docker-compose.opengauss-aj.yml`](../docker-compose.opengauss-aj.yml) | AJ 生产，容器 `octop-opengauss-aj`，绑定 `172.17.0.1:18088`，经现有 Nginx 的 8081 入口访问 | `/APP/DockerData/octop-aj/data` |
+
+两份配置都只运行 Octop，连接各自配置的现有 openGauss。AJ 的账号和配置保存在 `/APP/DockerData/octop-aj/config/.env`，目录 `0700`、文件 `0600`；本地凭证通过忽略的环境文件载入，不写入镜像或仓库。
 
 opengauss-runtime 构建目标包含 6.0.5 的 gs_dump/gs_restore。当前客户端基础镜像位于内部 Harbor，构建机器需要有权访问该镜像。Dockerfile 的默认目标仍为普通 runtime。
+
+该目标仅复制数据库备份恢复客户端及其依赖库，不包含 openGauss 数据库服务。新库初始化前还需检查运行账号对 `public` schema 的 `USAGE/CREATE` 权限；数据库 owner 身份不能替代这项核验，具体命令见发布手册。
 
 ## Python wheel 成对交付
 

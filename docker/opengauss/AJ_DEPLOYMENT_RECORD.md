@@ -2,10 +2,12 @@
 
 本页是本次生产实施的时间线和结果记录。执行一项操作后立即填写，不预填为成功。口令、令牌、完整 `.env`、带凭据的连接串及敏感命令输出不得写入此页。
 
+截至 2026-10-29：独立数据库与账号、正式应用和 Nginx 入口部署完成；健康、schema 25（36 张表）、受控重启持久化和外网入口验收通过。当前为受密码保护的初始化向导；首次管理员、登录和业务验收、隔离恢复演练尚未执行。GitHub `main` 已合并白标品牌提交 `868e7d15`，但现网镜像仍是 `ee6f5c7d`，新品牌需重新构建镜像后发布。下文早期探针或镜像导入阶段的“未启动”均指该操作当时状态。
+
 ## 变更边界
 
 - 目标主机：`10.51.49.8`，Kylin Linux Advanced Server V10，`x86_64`。
-- 公开入口候选：`http://211.137.76.3:8081/octop`；TLS 终止位置待确认。
+- 已验收公开入口：`http://211.137.76.3:8081/octop/`；TLS 终止位置待确认。
 - 新增内容：Octop 应用容器、独立 Octop 主机数据目录、openGauss 中独立 `octop` 数据库及非超级用户 `octop`。
 - 复用内容：现有 openGauss 容器 `opengauss_test`、现有 Nginx 容器 `nginx`。
 - 禁止触碰：既有 `plat` 数据库及其表/数据、openGauss 数据目录、现有容器定义和其他业务容器。
@@ -21,9 +23,9 @@
 | 运行中 openGauss build 版本 | 已确认 | 2026-10-28 / Codex | `gsql` 与 `gs_dump` 均为 6.0.5 build `5ba692ab` |
 | `gs_dump --version`（以 `omm` 身份） | 已完成，只读 | 2026-10-28 / Codex | `gs_dump (openGauss 6.0.5 build 5ba692ab)` |
 | `octop` 库和角色存在性及权限查询 | 已完成，只读 | 2026-10-28 / Codex | 库/角色均不存在；`omm` 有 superuser/createdb/createrole，`plat` 三项均否 |
-| 数据库/TLS/外部 URL 最终确认 | 部分确认 | 2026-10-28 / Codex | 候选 URL `http://211.137.76.3:8081/octop`；TLS 终止仍待确认 |
-| 正式镜像提交、镜像摘要、品牌和子路径验收 | 已完成 | 2026-10-28 / Codex | 主分支 `ee6f5c7d`；镜像 `octop-opengauss:main-ee6f5c7d`，ID `sha256:906f34bdcb57f3356da1dc0b7d1c823f4f2e410c24ca8f229f302a39b1a6a576`；品牌、`/octop/` 和 openGauss 客户端已核对 |
-| 生产操作审批 | 待补 |  |  |
+| 数据库/TLS/外部 URL 最终确认 | 部分确认 | 2026-10-28 / Codex | 公开 URL 后续已确认并通过入口验收；TLS 终止仍待确认 |
+| 正式镜像提交、镜像摘要、品牌和子路径验收 | 旧镜像已完成；新品牌待发布 | 2026-10-28 / Codex；2026-10-29 文档核对 | 现网镜像基于 `ee6f5c7d`，镜像 `octop-opengauss:main-ee6f5c7d`，ID `sha256:906f34bdcb57f3356da1dc0b7d1c823f4f2e410c24ca8f229f302a39b1a6a576`；`/octop/` 和 openGauss 客户端已核对。白标提交 `868e7d15` 已在 `main`，尚未构建新镜像 |
+| 生产操作审批 | 已获用户分阶段确认 | 2026-10-28 / 用户 | 会话中分别确认数据库/应用实施及 Nginx 追加路由和 reload；未把基础入口确认扩展为完整业务验收 |
 
 ## 数据库与账号
 
@@ -38,10 +40,11 @@
 | DB-DDL-02 | 创建 `octop` 数据库并指定 owner | 数据库不存在 | `omm` | 2026-10-28 / Codex | `CREATE DATABASE` 成功；只创建独立空库 `octop`，owner 为 `octop` | 已完成；不涉及 `plat` 库对象 |
 | DB-RO-04 | 复核库 owner、角色属性及 `plat` 角色属性 | 已完成 | `omm` | 2026-10-28 / Codex | `octop` owner=`octop`；角色非 superuser/createdb/createrole，LOGIN 已启用且口令非空；`plat` 角色属性与此前只读检查一致 | 只核对角色属性和新库 owner；未对 `plat` 执行 DDL/DML |
 | DB-SEC-01 | 设置口令并启用 `octop` 登录 | 初次设置因超长及复杂度不足失败，失败后已禁用登录 | `omm` | 2026-10-28 / Codex | 最终 32 字符随机口令设置成功，随后启用 LOGIN；使用 `gsql -2` 密码管道验证，`octop` 成功连接 `octop` 库；口令只存于 `.env`，未写入记录 | 已完成；实例认证配置未修改，MD5 风险需纳入后续安全评估 |
+| DB-ACL-01 | 仅在新库授予运行账号 schema 权限 | `public` owner=`omm`，`octop` USAGE=t、CREATE=f；失败初始化后仍为 0 张表 | `omm`，连接 `octop` 库 | 2026-10-28 16:30 / Codex | 保存原 ACL 后执行 `GRANT USAGE, CREATE ON SCHEMA public TO octop`，两项复查均为 t；随后初始化成功 | 不改变 schema owner、实例认证或管理权限，不授权给 PUBLIC；原 ACL 保存在发布目录 |
 
 执行结果更正（2026-10-28）：最初创建角色的尝试先因 openGauss 不支持 PostgreSQL 的 `NOSUPERUSER` 选项失败，随后因空口令失败；最终改用版本支持的角色属性并提供非空口令后，角色创建成功。`CREATE DATABASE octop OWNER octop` 随后成功。口令设置过程中，超长口令和仅含十六进制字符的口令均被 openGauss 拒绝；由于该版本 `gsql` 在 SQL 报错时仍可能返回成功退出码，不能只依赖 shell `$?` 判断。失败尝试后均将角色设回 `NOLOGIN`；最终口令满足长度和复杂度要求，设置语句输出成功后才启用 LOGIN。
 
-当前核验状态：`octop` 库 owner 为 `octop`；角色没有超级用户、建库或建角色权限，LOGIN 已启用且口令字段非空；`plat` 角色属性与部署前只读检查一致。使用 `.env` 中口令并通过 openGauss `gsql -2` 管道认证，成功连接新库，查询结果为 `octop|octop`。此前的探测采用不适用于本次 `gsql` 的 `PGPASSWORD`/PostgreSQL 风格方式，未能传入口令；失败反映验证命令不兼容，不代表凭据错误。`/APP/DockerData/octop-aj/config` 权限为 `0700`，`.env` 为 `0600`，目录内无残留临时口令文件。`password_encryption_type=0`，来源为 `/var/lib/opengauss/data/postgresql.conf` 第 913 行（`password_encryption_type = 0`）；`octop` 摘要类型为 `md5`。openGauss 输出 `The encrypted password contains MD5 ciphertext, which is not secure.`；本次没有修改实例认证配置。未在 `plat` 库的表或数据上执行 Octop 初始化、migration 或业务 DML；角色及建库语句虽通过连接 `plat` 的管理会话执行，但目标分别是集群角色和独立 `octop` 库。未启动 Octop 容器，也未修改 Nginx。
+账号配置阶段核验状态：`octop` 库 owner 为 `octop`；角色没有超级用户、建库或建角色权限，LOGIN 已启用且口令字段非空；`plat` 角色属性与部署前只读检查一致。使用 `.env` 中口令并通过 openGauss `gsql -2` 管道认证，成功连接新库，查询结果为 `octop|octop`。此前的探测采用不适用于本次 `gsql` 的 `PGPASSWORD`/PostgreSQL 风格方式，未能传入口令；失败反映验证命令不兼容，不代表凭据错误。`/APP/DockerData/octop-aj/config` 权限为 `0700`，`.env` 为 `0600`，目录内无残留临时口令文件。`password_encryption_type=0`，来源为 `/var/lib/opengauss/data/postgresql.conf` 第 913 行（`password_encryption_type = 0`）；`octop` 摘要类型为 `md5`。openGauss 输出 `The encrypted password contains MD5 ciphertext, which is not secure.`；本次没有修改实例认证配置。未在 `plat` 库的表或数据上执行 Octop 初始化、migration 或业务 DML；角色及建库语句虽通过连接 `plat` 的管理会话执行，但目标分别是集群角色和独立 `octop` 库。未启动 Octop 容器，也未修改 Nginx。
 
 应用驱动验证补充（2026-10-28）：远端 openGauss 容器内没有 `psycopg` Python 包；本地现有 `octop-opengauss-aj:review-20261028` 镜像来自含未提交改动的工作区，没有用于生产库测试。另构建仅含 `psycopg[binary]==3.3.4` 的小型测试镜像，从 Spug 文件管理器上传到远端 `/tmp`；远端归档 SHA-256 与本地一致。测试镜像在现有 `bridge` 网络以 `--rm` 运行，无端口映射和数据卷，通过受限 `.env` 连接新库并执行只读 `SELECT current_user, current_database()`，返回 `octop|octop`。未启动 Octop，也未触发初始化或 migration。验证后删除远端归档、临时镜像，并删除本地临时 psycopg 测试镜像；独立 Octop smoke 构建镜像仍只保留在本地。
 
@@ -74,7 +77,7 @@ FROM pg_roles WHERE rolname IN ('omm', 'plat', 'octop');
 | APP-02 | 安装单应用 Compose 与权限受限 `.env` | 已完成 | 2026-10-28 / Codex | Compose 及 `.env` 均为 `0600`；保留既有数据库口令，新增配置值；旧 `.env` 已备份 | 备份位于 `config/.env.before-prepare-20261028T155427`，权限 `0600` |
 | APP-03 | `docker compose config -q` 校验 | 已完成 | 2026-10-28 / Codex | 渲染配置校验通过；实际 Compose 临时驱动探针只读连接新库成功 | 未打印密钥或完整渲染配置，未启动正式应用 |
 | APP-04 | 启动 `octop-opengauss-aj` | 已完成 | 2026-10-28 / Codex | 首次启动发现账号没有 `public` schema 的 CREATE 权限；仅在独立 `octop` 库授予 USAGE, CREATE 后启动成功，容器运行中 | 回滚时停止新容器，保留数据库和数据目录 |
-| APP-05 | 健康、登录、数据持久化验收 | 部分完成 | 2026-10-28 / Codex | health、schema 25、36 张表和受控重启持久化通过；管理员设置和登录待业务方完成 | 本阶段未修改 Nginx |
+| APP-05 | 健康、登录、数据持久化验收 | 部分完成 | 2026-10-28 / Codex | health、schema 25、36 张表和受控重启持久化通过；管理员设置和登录待业务方完成 | Nginx 后续操作单独记录于 NGINX-01/02 |
 | NGINX-01 | 备份并追加 `/octop/` 路由 | 已完成 | 2026-10-28 17:11 / Codex | 备份目录 `backups/nginx-20261028T171128/`；仅向 `http_aj.conf` 的 80 端口 server 追加带标记的两段 location，其他字节保持一致 | 恢复该目录的 `http_aj.conf`，测试后 reload |
 | NGINX-02 | `nginx -t` 后 reload 和外部验收 | 已完成（入口验收） | 2026-10-28 / Codex | 修改前后 `nginx -t` 均通过；执行 `nginx -s reload`；外网向导页面、308 跳转保留参数、11 个资源及 health 通过；原 Spug/OA/BPM 响应未变化，容器未重启 | 管理员、登录和业务功能验收仍待执行 |
 
@@ -85,7 +88,8 @@ FROM pg_roles WHERE rolname IN ('omm', 'plat', 'octop');
 | 新 `octop` 库备份 | 已完成（启动前） | 2026-10-28 / Codex | `/APP/DockerData/octop-aj/backups/prestart-20261028T162340/`；dump 834 bytes，SHA-256 `f698091ffa20d5b4a378cdc2707023a9abd44ac07383c6a6648ca8a5060ae0dc`；仅检查归档列表，未恢复 |
 | Octop 文件数据备份 | 已完成（启动前） | 2026-10-28 / Codex | 同一目录保存 `data-before-start.tar.gz`、Compose 和受限配置副本，目录内校验通过；配置文件不进入公开记录 |
 | 隔离环境恢复演练 | 待执行 |  |  |
-| `/octop/`、API、OIDC、Agent Memory、知识库验收 | 待执行 |  |  |
+| `/octop/` 与基础 API 入口验收 | 已完成 | 2026-10-28 / Codex | 初始化向导、health、setup/status、308 跳转、11 个页面资源通过；无 token 的 WebSocket 握手返回 403，仅验证入口和拒绝鉴权 |
+| 首次管理员、登录/OIDC、聊天/WebSocket、Agent Memory、知识库验收 | 待执行 |  | 需完成管理员及相应模型、embedding、OIDC/连接器配置后再验收；不以基础入口通过代替 |
 | 完整业务/MCP 测试（按已配置连接器执行） | 待执行 |  |  |
 | 生产变更完成确认 | 待执行 |  |  |
 
@@ -93,7 +97,7 @@ FROM pg_roles WHERE rolname IN ('omm', 'plat', 'octop');
 
 2026-10-28 在已合并并推送的 `main` 提交 `ee6f5c7d3e88b6830c17646e63a6706944886881` 上构建 `octop-opengauss:main-ee6f5c7d`。构建目标为 `linux/amd64`、`opengauss-runtime`，参数为 `VITE_BASE_PATH=/octop/`、`INSTALL_LOCAL_EMBEDDING=false`。镜像 ID 为 `sha256:906f34bdcb57f3356da1dc0b7d1c823f4f2e410c24ca8f229f302a39b1a6a576`，大小 `3,138,821,813` bytes。
 
-临时容器核对了 Octop 导入、psycopg 3.3.4、`gs_dump`/`gs_restore` 6.0.5 build `5ba692ab`、`/octop/` 资源和未安装 `fastembed`；核对容器已自动删除。镜像只加载到本地，未推送仓库，暂无 RepoDigest。详细报告见 [FORMAL_IMAGE_BUILD_REPORT.md](FORMAL_IMAGE_BUILD_REPORT.md)。
+临时容器核对了 Octop 导入、psycopg 3.3.4、`gs_dump`/`gs_restore` 6.0.5 build `5ba692ab`、`/octop/` 资源和未安装 `fastembed`；核对容器已自动删除。镜像构建时加载到本地，随后经离线交付在远端导入并运行；未推送镜像仓库，暂无 RepoDigest。详细报告见 [FORMAL_IMAGE_BUILD_REPORT.md](FORMAL_IMAGE_BUILD_REPORT.md)。
 
 ## 正式镜像离线交付
 
@@ -103,7 +107,7 @@ FROM pg_roles WHERE rolname IN ('omm', 'plat', 'octop');
 | IMAGE-01 | 导出正式镜像、压缩并生成校验清单 | 2026-10-28 / Codex | 归档 `1,213,336,901` bytes；SHA-256 为 `99bd2891371da4e5ef8b1ad165afbc1cfe57421c07acf6c4c7c5dadd98737652` |
 | IMAGE-02 | 建立独立发布目录并通过 Spug 上传文件 | 2026-10-28 / Codex | 新目录 `/APP/DockerData/octop-aj/releases/main-ee6f5c7d-20261028/` 权限 `0700`；37 个 32 MiB 以内的分片及两份校验清单上传完成 |
 | IMAGE-03 | 远端逐片校验、合并、完整归档校验 | 2026-10-28 / Codex | 37 片 SHA-256 全部通过；完整归档与本地 SHA-256 一致；`gzip -t` 通过；归档权限 `0600` |
-| IMAGE-04 | 导入镜像 | 2026-10-28 / Codex | 再次校验归档后执行 `docker load`；image ID 与本地正式镜像完全一致；正式应用和 Nginx 接入仍未执行 |
+| IMAGE-04 | 导入镜像 | 2026-10-28 / Codex | 再次校验归档后执行 `docker load`；image ID 与本地正式镜像完全一致；当时尚未启动应用，后续结果见 APP-04 与 NGINX-01/02 |
 
 归档文件位于上述发布目录，文件名为 `octop-opengauss-main-ee6f5c7d-20261028.tar.gz`。分片与校验清单暂保留。完整步骤和校验值见 [FORMAL_IMAGE_BUILD_REPORT.md](FORMAL_IMAGE_BUILD_REPORT.md)。
 
@@ -119,6 +123,8 @@ FROM pg_roles WHERE rolname IN ('omm', 'plat', 'octop');
 6. 预检时没有残留 Octop 容器；随后启动 `octop-opengauss-aj`，仅绑定 `172.17.0.1:18088`。现有 `opengauss_test` 的启动时间仍为 `2026-10-09T06:51:35.736230935Z`，Nginx 仍为 `2026-10-12T01:55:52.518555208Z`，均未重启。
 
 本次准备脚本与只读探针保存在远端该发布目录，均不包含凭据。启动后探针验证 `public._schema_version=25`、baseline marker、36 张表和 0 个管理员，受控重启后 health、schema 和向导文件校验均通过。首次启动因 schema ACL 不足失败，已在新库执行 `GRANT USAGE, CREATE ON SCHEMA public TO octop` 后重试成功。Nginx 接入已完成，首次管理员设置、登录及完整业务验收仍未执行。
+
+品牌发布说明（2026-10-29）：品牌源码提交 `868e7d15` 已推送到 `origin/main`，包含上游吉祥物/默认品牌内容清理和 PLAT 助手品牌资源处理；本次只更新维护文档，未重建或替换现网容器。新镜像发布前必须记录新源码提交、镜像 ID、归档 SHA-256，并重新验证品牌、`/octop/` 子路径、健康检查、schema 与回滚路径。
 
 ## Nginx 路由实施与外网验证
 

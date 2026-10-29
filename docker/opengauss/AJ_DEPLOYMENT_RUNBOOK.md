@@ -2,6 +2,8 @@
 
 本手册记录 AJ 环境 Octop 的发布准备、部署、验收与回滚步骤，后续相同环境可按此复用。生产方案见 [DEPLOYMENT_AJ_CN.md](DEPLOYMENT_AJ_CN.md)，本次逐项操作流水见 [AJ_DEPLOYMENT_RECORD.md](AJ_DEPLOYMENT_RECORD.md)，部署配置为 [`docker-compose.opengauss-aj.yml`](../docker-compose.opengauss-aj.yml)。
 
+截至 2026-10-28，应用和 Nginx 入口已部署并完成基础验收，当前为初始化向导。下面的创建、配置安装和路由追加步骤供新环境使用，不能在当前 AJ 环境重复执行；后续待办是首次管理员设置、登录后的业务验收和隔离恢复演练。
+
 ## 安全边界
 
 - 只新增 Octop 应用容器 `octop-opengauss-aj`，复用主机现有 openGauss；不得新增、重建或重启数据库容器。
@@ -35,7 +37,7 @@ docker inspect --format '{{.Config.Image}} {{json .NetworkSettings.Networks}} {{
 docker inspect --format '{{.Config.Image}} {{json .NetworkSettings.Networks}}' <nginx容器名>
 ```
 
-本次只读预检记录（2026-10-28）：
+本次部署前只读预检记录（2026-10-28；以下无路由、空端口和目录不存在均指部署前状态）：
 
 - 主机为 Kylin Linux Advanced Server V10 (Halberd)，`x86_64`；8 核、约 30 GiB 内存，约 17 GiB 可用。`/APP` 为 196 GiB，已用 29 GiB、可用 157 GiB。
 - Docker Server `26.0.2`。默认 `bridge` 网络为 `172.17.0.0/16`，网关 `172.17.0.1`。
@@ -44,7 +46,7 @@ docker inspect --format '{{.Config.Image}} {{json .NetworkSettings.Networks}}' <
 - 默认 `bridge` 不应依赖容器名 DNS。独立 `octop` 库和角色已创建，并已通过同一 bridge 网络中的临时驱动容器，使用 `172.17.0.1:15434` 完成认证和只读连接验证。后续 Octop 的 `18088` 仍只绑定 `172.17.0.1` 供 Nginx 访问；不得连接 `172.17.0.2` 作为固定地址。
 - `/APP/DockerData/octop-aj` 与其 `data` 子目录在预检时不存在；后续已完成独立数据目录和配置准备，详见本次操作记录。外部访问 URL 配置为 `http://211.137.76.3:8081/octop`，与当前 Nginx HTTP 入口相符；TLS 终止位置仍需确认，开放 Octop 登录前必须确认该入口是否应提供 TLS。
 
-因此现场应用发布前置条件仍未完全闭环：TLS 终止位置仍待确认；服务 build 字符串和数据库连通性已通过正式镜像的驱动只读查询确认。候选外部 URL 为 `http://211.137.76.3:8081/octop`。运行容器 image ID 已确认，但本地没有 RepoDigest。日志和 inspect 输出先检查是否含密钥再保存。
+后续通过正式镜像的驱动只读查询已确认服务为 6.0.5 build `5ba692ab`，数据库认证和网络正常；应用及 Nginx 路由也已部署。实际外部入口为 `http://211.137.76.3:8081/octop/`，TLS 终止位置仍待确认。本次离线镜像没有 RepoDigest，以本地及远端一致的 image ID 核对身份。日志和 inspect 输出先检查是否含密钥再保存。
 
 ## 2. 构建与交付镜像
 
@@ -57,11 +59,11 @@ docker buildx build \
   --build-arg VITE_BASE_PATH=/octop/ \
   --build-arg INSTALL_LOCAL_EMBEDDING=false \
   --tag <审核过的镜像名:版本> \
-  --push \
+  --load \
   -f docker/Dockerfile .
 ```
 
-只有在批准的镜像仓库已确认可用时才推送。若通过离线文件交付，生成镜像归档并在传输两端校验 SHA-256，再在目标机加载。生产 Compose 必须引用不可变镜像：仓库交付使用 `仓库@sha256:...`，离线 `docker load` 交付可直接使用核对过的本地 `sha256:...` image ID，并设置 `pull_policy: never`。不能使用 `latest` 或可覆盖标签。
+本次采用 `--load` 构建后离线交付，镜像保存、32 MiB 分片、Spug 上传、两端 SHA-256 和 gzip 校验步骤见 [正式镜像报告](FORMAL_IMAGE_BUILD_REPORT.md)。如以后使用已批准且可用的镜像仓库，再将 `--load` 改为 `--push`。生产 Compose 必须引用不可变镜像：仓库交付使用 `仓库@sha256:...`，离线 `docker load` 交付使用核对过的本地 `sha256:...` image ID，并设置 `pull_policy: never`。不能使用 `latest` 或可覆盖标签。
 
 验证构建参数、镜像架构、PLAT 品牌、`/octop/` 静态资源、`gs_dump`/`gs_restore` 版本和 `/api/health`。镜像中的 openGauss 镜像仅用于构建阶段复制匹配版本的客户端工具；它不会作为数据库容器运行。
 
@@ -89,6 +91,30 @@ CREATE DATABASE octop OWNER octop ENCODING 'UTF8' TEMPLATE template0;
 验证发现，即使创建 `NOLOGIN` 角色，省略密码仍会被 openGauss 拒绝（`The password could not be NULL`）。密码长度超过 32 字符或复杂度不符合服务端要求也会被拒绝；由于 `gsql` 的退出码不能可靠表示 SQL 执行失败，脚本必须检查并匹配成功输出后再继续后续语句。上方 `PASSWORD` 值必须由安全流程提供，不能原样执行占位符；没有安全注入口令时，不执行建角色/建库。
 
 该 openGauss 6.0.5 的 `\\h CREATE ROLE` 帮助不包含 PostgreSQL 的 `SUPERUSER/NOSUPERUSER` 选项；本方案使用该版本支持的属性，并确认 Octop 角色没有 `SYSADMIN` 等管理角色。建库成功后，连接新库检查数据库 owner、角色属性和连接权限；确认没有在 `plat` 数据库产生新表或其他对象。若当前 openGauss 版本不接受上述语法，停止并根据服务端 `gsql`/帮助输出修订脚本，不要在生产库反复试 SQL。
+
+建库后还必须核验 schema 权限。本次 `octop` 虽是数据库 owner，但 `public` schema 仍属于 `omm`，账号只有 USAGE、没有 CREATE，导致首次 migration 报 `permission denied for schema public`。修复仅在新 `octop` 库执行，不能扩大到共享实例或 `plat` 库：
+
+```sh
+docker exec -it opengauss_test su - omm -c 'gsql -p 5432 -d octop'
+```
+
+进入上述新库会话后先核对目标、schema owner 和 ACL，保存修改前 ACL；若仅缺少该账号所需权限，再执行授权并复查：
+
+```sql
+SELECT current_database(); -- 必须为 octop
+SELECT nspname, pg_get_userbyid(nspowner), nspacl
+FROM pg_namespace WHERE nspname = 'public';
+SELECT has_schema_privilege('octop', 'public', 'USAGE') AS usage_ok,
+       has_schema_privilege('octop', 'public', 'CREATE') AS create_ok;
+
+-- 仅针对已确认的独立 octop 库和运行账号，不授予 PUBLIC 或管理权限：
+GRANT USAGE, CREATE ON SCHEMA public TO octop;
+
+SELECT has_schema_privilege('octop', 'public', 'USAGE') AS usage_ok,
+       has_schema_privilege('octop', 'public', 'CREATE') AS create_ok;
+```
+
+两项权限必须均为 `t`，还需用实际应用账号连接。AJ 已完成该授权，随后初始化和受控重启均通过；无需重复建库、改密或提高账号管理权限。
 
 在 `/APP/DockerData/octop-aj/` 放置 Compose 文件；账号口令和其他环境配置单独放在 `config/.env`。目录设为 `0700`、文件设为 `0600`。必填配置：
 
@@ -123,7 +149,7 @@ docker compose --env-file config/.env -f docker-compose.opengauss-aj.yml \
 
 ## 4. 启动与 Nginx 接入
 
-启动前再次确认服务名、容器名、端口、数据路径和数据库名；启动后确认只有新增 Octop 应用容器。执行 Compose 的操作由值班人记录开始/结束时间：
+启动前再次确认服务名、容器名、端口、数据路径和数据库名，并备份新库、完整数据目录、Compose 与受限 `.env`。AJ 启动前备份位于 `/APP/DockerData/octop-aj/backups/prestart-20261028T162340/`；空库 dump 834 bytes，`gs_restore --list` 通过，仅验证归档可读，尚未做实际恢复。启动后确认只有新增 Octop 应用容器。执行 Compose 的操作由值班人记录开始/结束时间：
 
 ```sh
 cd /APP/DockerData/octop-aj
@@ -133,7 +159,7 @@ docker inspect --format '{{.Config.Image}} {{json .NetworkSettings.Networks}} {{
 curl --fail http://<bridge-gateway>:18088/api/health
 ```
 
-确认迁移只发生于新 `octop` 库，完成首次管理员设置并重启一次，验证登录、配置和数据目录持久化。备份 Nginx 配置后追加路由：
+确认迁移只发生于新 `octop` 库，检查 schema 水位和 baseline 标记；本次结果为 schema 25、36 张表。先受控重启应用，验证健康和向导文件持久化，再备份 Nginx 配置并追加路由：
 
 ```nginx
 location = /octop { return 308 /octop/$is_args$args; }
@@ -164,6 +190,8 @@ docker exec nginx nginx -s reload
 
 改动必须仅限新增 location；备份目录放在 Nginx include 目录之外，避免误加载旧配置。修改前后分别检查现有 Spug/OA/BPM 入口，核对容器 ID、启动时间与重启次数。AJ 本次这些入口响应完全一致，容器均未重启。外网 `/octop/`、保留参数的 308 跳转、11 个页面资源和 health 已通过，页面处于受密码保护的初始化向导。无 token 的 WebSocket 握手返回 403；登录后的 WebSocket、聊天、Memory 和知识库业务验收仍待首次设置后执行。
 
+未配置初始管理员密码时，首次入口为设置向导，管理员数量为 0 属于本次预期状态。向导口令文件在容器 `/data/.octop/octop-login.txt`，对应主机 `/APP/DockerData/octop-aj/data/octop-login.txt`，权限 `0600`；只由获授权管理员在受限终端读取，不复制到发布文档或普通日志。完成首次管理员设置后再验收登录、配置保存和业务数据持久化。模型、第三方 embedding、OIDC 和连接器均需按业务配置，不能因入口健康就视为这些功能已经验收。
+
 ## 5. 功能、备份与恢复验收
 
 - 健康检查、静态资源、`/octop/` 子路径、API、OIDC 登录和 cookie 路径。
@@ -185,7 +213,7 @@ docker exec nginx nginx -s reload
 | 项目 | 记录 |
 | --- | --- |
 | 镜像源码分支 / 提交 | `main` / `ee6f5c7d3e88b6830c17646e63a6706944886881`，从干净工作区构建 |
-| 远端预检与数据库 | 独立 `octop` 角色和数据库已创建，使用正式镜像及实际 Compose 配置只读连接成功；服务版本 6.0.5 build `5ba692ab`，`public` 基础表为 0；TLS 终止位置待确认 |
+| 远端预检与数据库 | 独立 `octop` 库和账号可连接，服务版本 6.0.5 build `5ba692ab`；初始化前 0 张表，初始化后 schema 25、36 张表，管理员 0；TLS 终止位置待确认 |
 | 质量检查 | Ruff、mypy、`npx tsc -b` 通过；`PYTEST_JOBS=4 make test` 为 `5,279 passed, 93 skipped`。默认 8 worker 全量运行时 `test_backup_deletion_excludes_maintenance_and_restore` 一次 5 秒等待超时，单独重跑通过 |
 | 镜像目标 | `linux/amd64`，`opengauss-runtime`，`VITE_BASE_PATH=/octop/`，`INSTALL_LOCAL_EMBEDDING=false` |
 | 本地构建 | 已完成；首次 container builder 因 Harbor IP 证书 SAN 不匹配失败；后续改用本地 Docker builder 与已有缓存镜像 |
@@ -202,4 +230,4 @@ docker exec nginx nginx -s reload
 | 生产数据库 / 容器 / Nginx | 独立 `octop` 库和账号可连接；应用容器仅绑定 `172.17.0.1:18088`；Nginx 仅追加 `/octop/` 路由并 reload，原入口响应一致；容器未重启，未在 `plat` 库执行 Octop DDL/DML |
 | 验收 / 备份恢复 | 启动前数据库与数据目录备份完成；健康、schema 和受控重启持久化通过；隔离恢复、首次管理员、登录和完整业务验收待执行 |
 
-构建补充：首次使用 `octop-amd64-builder` 时因 Harbor 证书只含 DNS SAN、而 Dockerfile 用 IP 地址访问而失败；没有关闭 TLS 校验。第二次使用 `desktop-linux` 构建，复用了本机已有的 openGauss 6.0.5 缓存镜像作为客户端文件来源。远端运行容器的 image ID 与该本地镜像 ID 相同，确认客户端来源与当前数据库镜像文件完全一致；运行中的服务 build 字符串未直接查询。本次没有从生产主机拉取或启动 openGauss 镜像。候选镜像仅作审核；正式镜像已在合并后的 `main` 提交 `ee6f5c7d` 上构建、离线交付并导入，详见正式构建报告。
+构建补充：首次使用 `octop-amd64-builder` 时因 Harbor 证书只含 DNS SAN、而 Dockerfile 用 IP 地址访问而失败；没有关闭 TLS 校验。第二次使用 `desktop-linux` 构建，复用了本机已有的 openGauss 6.0.5 缓存镜像作为客户端文件来源。数据库容器与客户端来源镜像的 image ID 相同，服务 build 后续经数据库驱动查询确认为 `5ba692ab`。本次没有从生产主机拉取或启动 openGauss 镜像。正式镜像已在合并后的 `main` 提交 `ee6f5c7d` 上构建、离线交付并运行，详见正式构建报告。

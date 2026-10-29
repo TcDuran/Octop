@@ -1,6 +1,6 @@
 # AJ 环境 Octop 部署方案
 
-状态：数据库、正式镜像、Compose、`.env` 和数据目录已完成；应用健康、schema 和重启持久化验证通过，Nginx `/octop/` 路由已接入并完成外网入口验收。当前页面为受密码保护的初始化向导，首次管理员设置和完整业务验收待执行。操作与备份路径见操作记录和发布手册。
+状态：数据库、当前正式镜像、Compose、`.env` 和数据目录已完成；应用健康、schema 和重启持久化验证通过，Nginx `/octop/` 路由已接入并完成外网入口验收。当前页面为受密码保护的初始化向导，首次管理员设置和完整业务验收待执行。GitHub `main` 已有更新的白标品牌提交，但当前 AJ 镜像尚未包含该提交，需重新构建并完成发布前验证。操作与备份路径见操作记录和发布手册。
 
 ## 方案结论
 
@@ -13,10 +13,11 @@ Agent Memory 的关系记忆和 checkpoint 继续使用现有 openGauss 后端�
 | 数据 | 存放位置 |
 | --- | --- |
 | 用户、Agent、连接器、知识库等控制面元数据，以及 Agent Memory 和 checkpoint | 现有 openGauss 实例中的新 `octop` 数据库 |
-| 知识库原文、分块和第三方 embedding | `/APP/DockerData/octop-aj/data/knowledge/<kb_id>/index.sqlite` |
+| 知识库原文 | `/APP/DockerData/octop-aj/data/knowledge/<kb_id>/docs/` |
+| 知识库分块和第三方模型生成的向量 | `/APP/DockerData/octop-aj/data/knowledge/<kb_id>/index.sqlite` |
 | Agent 工作区、配置和其他 Octop 文件 | `/APP/DockerData/octop-aj/data/` |
 
-知识库继续使用现有第三方 embedding 配置，不下载或安装本地 embedding 模型。Octop 当前在 openGauss 控制面下默认将 Agent Memory 和 checkpoint 存入该控制面数据库，符合本方案，无需为 Memory 增加代码配置。
+知识库使用第三方 embedding 模型，不下载或安装本地模型；本次 AJ 仍需在首次设置后配置业务模型和 embedding，尚未完成知识库验收。Octop 在 openGauss 控制面下默认将 Agent Memory 和 checkpoint 存入该控制面数据库，符合本方案，无需为 Memory 增加代码配置。
 
 ## 主机与连接前置条件
 
@@ -43,10 +44,11 @@ Compose、现场连接参数、权限受限的 `.env` 和正式镜像已准备�
 
 以下是供后续环境参考的部署顺序。本次数据库、应用和 Nginx 接入已完成，详见 [AJ_DEPLOYMENT_RECORD.md](AJ_DEPLOYMENT_RECORD.md)；不得在当前环境重复创建或重置账号、覆盖已有配置：
 
-1. 只读确认现有 openGauss 容器、版本和镜像摘要、数据库连接网络/端口、磁盘和内存；确认 Octop 容器名、`18088` 端口和 `/APP/DockerData/octop-aj/data` 未被占用。复核 `octop` 库 owner 与最小权限账号，不再执行建库建角色。
+1. 只读确认现有 openGauss 容器、版本和镜像摘要、数据库连接网络/端口、磁盘和内存；确认 Octop 容器名、`18088` 端口和 `/APP/DockerData/octop-aj/data` 未被占用。新环境按发布手册创建独立库/账号并核验 `public` schema 的 USAGE/CREATE；当前 AJ 库已完成，不再重复建库建角色。
 2. 创建 Octop 独立数据目录和权限受限的配置文件，部署单服务 Compose 与已审核的镜像；运行 Compose 配置检查后再启动 Octop 容器。
-3. 检查 Octop 健康状态、数据库迁移水位和 `/data/.octop` 持久化挂载。完成首次管理员设置后重启容器，确认登录和配置保留。
+3. 检查 Octop 健康状态、迁移水位和 `/data/.octop` 持久化挂载，执行一次受控重启，验证健康和向导文件持久化。
 4. 备份 Nginx 配置并追加 `/octop/` 路由。测试 Nginx 配置后 reload，确认静态资源从 `/octop/` 加载且 API 健康检查成功。
+5. 通过初始化向导创建管理员，配置业务模型、第三方 embedding 及所需连接器，再验收登录、聊天、Memory 和知识库；首次设置完成后继续验证业务数据重启持久化。
 
 Nginx 路由建议如下；`172.17.0.1` 部署前须按现场 Docker 网络核实：
 
