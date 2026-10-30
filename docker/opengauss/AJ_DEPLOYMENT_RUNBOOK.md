@@ -298,18 +298,131 @@ docker exec nginx nginx -s reload
 
 构建补充：首次使用 `octop-amd64-builder` 时因 Harbor 证书只含 DNS SAN、而 Dockerfile 用 IP 地址访问而失败；没有关闭 TLS 校验。第二次使用 `desktop-linux` 构建，复用了本机已有的 openGauss 6.0.5 缓存镜像作为客户端文件来源。数据库容器与客户端来源镜像的 image ID 相同，服务 build 后续经数据库驱动查询确认为 `5ba692ab`。本次没有从生产主机拉取或启动 openGauss 镜像。正式镜像已在合并后的 `main` 提交 `ee6f5c7d` 上构建、离线交付并运行，详见正式构建报告。
 
-## 7. 后续版本更新
+## 7. 后续版本更新：标准操作 SOP
 
-2026-10-29 已按该流程完成 `main-b46b9722` 更新，详见 [更新记录](AJ_DEPLOYMENT_RECORD.md#2026-10-29-白标镜像更新)。当前 AJ 已有管理员和运行中的 Agent，不能再按首次初始化流程重复建库、创建管理员或追加 Nginx 路由。
+2026-10-29 已按该流程完成 `main-b46b9722` 更新，详见 [更新记录](AJ_DEPLOYMENT_RECORD.md#2026-10-29-白标镜像更新)。当前 AJ 已有管理员、OIDC 配置和运行中的 Agent，后续更新不能重复建库、创建管理员、追加 Nginx 路由或覆盖现有 `config/.env`。
 
-1. 固定干净源码提交构建镜像，保留 PLAT 品牌校验、`VITE_BASE_PATH=/octop/`、amd64 和匹配版本客户端检查。使用独立标签和发布目录；本地后续未提交修改不得混入已核准镜像。
-2. 新镜像归档按 32 MiB 分片上传；每片和完整归档 SHA-256、`gzip -t` 均通过后才导入。合并使用 noclobber，旧归档不覆盖。核对 image ID，保留旧镜像。
-3. 替换前备份现有 `.env`、Compose、旧 image ID 和数据库，并获取一致的文件/SQLite 备份；运行中直接复制文件目录不能当作已验证的一致性恢复点。若涉及迁移，必须先在隔离库演练升级与恢复。发布后生成的 dump 不作为发布前恢复点。
-4. 更新 `.env` 的 `OCTOP_IMAGE`（不打印完整文件），`docker compose config -q` 后仅重建 Octop：`docker compose --env-file config/.env -f docker-compose.opengauss-aj.yml up -d --no-deps`。不操作现有数据库容器和 Nginx 路由；通过 Spug 执行时保存返回码及去敏日志，连接断开后先查询现状再决定是否重试。
-5. 核对 image ID、healthy、health、schema、用户/Agent 加载和 `/octop/` 品牌资源；检查原 Spug/OA/BPM 入口。完整业务验收单独记录，不因 health 通过而标记所有功能已验收。
-6. 更新失败时，恢复更新前 `.env` 和 Compose，再用旧镜像 `up -d --no-deps`。需要数据库降级/恢复时另行审核，禁止直接覆盖生产库或执行 `down -v`。
-7. 发布完成后同步操作记录和校验清单，敏感配置、数据库备份和用户数据留在受限目录。文档以当前镜像提交与历史部署记录分别标注，避免误用旧镜像。
-8. 若 OA OAuth2 客户端 `octop` 的 access token 有效期发生调整，需在发布记录中记录客户端字段和生效时间；配置只影响后续新签发的 `X-Plat-Token`，已存 Plat 凭证必须重新 OIDC 登录后才会更新。不要把内嵌 `embed-ticket` 的约 60 秒一次性时效改成长效令牌。
+### 7.1 先判断变更类型
+
+- **文档或运维文件变更**：只更新仓库/现场文档，不重建镜像、不重启 Octop；生产运维脚本变更须单独审核和记录。
+- **应用镜像变更**：按本节执行；默认只替换 `octop-opengauss-aj`，不重启 openGauss、Nginx、OA、BPM 或其他容器。
+- **数据库迁移、依赖、OIDC、Nginx、网络规则或存储架构变更**：不能只按镜像更新处理。必须先在隔离库/隔离实例完成验证，并在发布记录中写明额外变更、影响、回滚和维护窗口。
+
+本 SOP 的发布范围是“已审核源码提交构建的新 Octop 镜像 + 必要的 Compose 镜像引用更新”。数据库迁移由应用启动时执行，但升级前必须完成隔离库演练；任何降级都不能只回退镜像。
+
+### 7.2 发布前冻结和基线
+
+1. 确认发布版本、源码提交、变更单、维护窗口、回滚负责人和验收负责人；生成唯一发布编号，例如 `main-<short-sha>-YYYYMMDD`。
+2. 在本地干净工作区操作：
+
+   ```sh
+   git status --short
+   git rev-parse HEAD
+   git describe --always --dirty
+   ```
+
+   `git status --short` 必须为空。不要从含有未提交代码、测试数据、provider 凭证或本地环境文件的工作区构建正式镜像。
+3. 保存当前生产基线：旧 image ID、Compose SHA-256、Nginx 配置摘要、容器 ID/启动时间、`/api/health`、schema watermark、用户/Agent 数量和当前端口。健康检查失败、数据库连接异常或基线无法复现时停止发布。
+
+### 7.3 本地构建和验证
+
+在已审核提交上构建 `linux/amd64`、`opengauss-runtime` 镜像：
+
+```sh
+docker buildx build \
+  --builder desktop-linux \
+  --platform linux/amd64 \
+  --target opengauss-runtime \
+  --build-arg VITE_BASE_PATH=/octop/ \
+  --build-arg INSTALL_LOCAL_EMBEDDING=false \
+  --tag octop-opengauss:<release-id> \
+  --load \
+  -f docker/Dockerfile .
+```
+
+构建后必须核对：
+
+- image ID、架构和 Dockerfile target；
+- `/octop/` 子路径静态资源和 PLAT 品牌资源；
+- `import octop`、`psycopg`、`gs_dump`/`gs_restore` 版本；
+- `INSTALL_LOCAL_EMBEDDING=false` 时不存在 `fastembed`；
+- 临时核对容器退出且没有数据卷、端口或临时容器残留。
+
+应用源码质量门和前端检查按仓库 `AGENTS.md` 执行。正式发布至少保留 `make all`、前端构建和镜像核对结果；若本轮只发布已验证提交，也要记录复用的原始证据，不得把未运行的检查写成通过。
+
+### 7.4 归档、校验和交付
+
+1. 为该发布建立独立目录，不覆盖旧归档：
+
+   ```sh
+   docker save octop-opengauss:<release-id> | gzip -1 > octop-opengauss-<release-id>.tar.gz
+   sha256sum octop-opengauss-<release-id>.tar.gz > SHA256SUMS.archive
+   gzip -t octop-opengauss-<release-id>.tar.gz
+   split -b 32m -d -a 3 octop-opengauss-<release-id>.tar.gz \
+     octop-opengauss-<release-id>.tar.gz.part
+   sha256sum octop-opengauss-<release-id>.tar.gz.part* > SHA256SUMS.parts
+   ```
+
+2. 通过审核的文件上传到远端发布目录：镜像分片、两个校验清单、Compose 文件、源码提交/image ID 记录、更新后的 `docker/opengauss` 文档和已审核的 `operations/` 文件。生产 `.env`、OIDC client secret、签名私钥、数据库备份、业务数据和测试 provider 文件不得进入上传目录。
+3. 远端逐片执行校验，所有分片通过后再合并；合并使用 noclobber，禁止覆盖已存在的完整归档。合并后再次执行完整归档 SHA-256、`gzip -t`，然后 `docker load`。
+4. `docker image inspect` 必须确认远端 image ID 与本地记录一致、平台为 `linux/amd64`；不使用 `latest`、可覆盖 tag 或未经校验的镜像。
+
+### 7.5 远端替换前备份
+
+在 `/APP/DockerData/octop-aj/` 执行，命令输出不得包含口令或完整渲染后的 Compose：
+
+1. 备份当前 `docker-compose.opengauss-aj.yml`、`.env`、旧 image ID、Nginx 相关配置和操作记录；敏感副本权限为 `0600`，目录为 `0700`。
+2. 用匹配版本的 `gs_dump` 取得更新前 `octop` 数据库归档，保存 SHA-256 并执行 `gs_restore --list`。更新后生成的 dump 不能冒充更新前恢复点。
+3. 先停止业务写入，再停止 Octop 容器并复制完整 `/APP/DockerData/octop-aj/data`，确保包含 `knowledge/**/docs`、`index.sqlite`、SQLite WAL、workspace 和其他 `.octop` 文件；运行中直接复制目录不能作为一致性恢复点。
+4. 若存在数据库迁移，必须已在隔离库完成相同版本升级和恢复验证。不能在 `plat` 库、共享业务库或现有 openGauss 数据目录执行测试 SQL。
+
+### 7.6 远端配置检查和应用替换
+
+1. 只更新受控 `.env` 中的 `OCTOP_IMAGE`，保留数据库、OIDC、公开 URL、网络和端口配置；不要把生产 secret 写进 Compose。
+2. 先检查配置，不启动服务：
+
+   ```sh
+   cd /APP/DockerData/octop-aj
+   docker compose --env-file config/.env \
+     -f docker-compose.opengauss-aj.yml config -q
+   ```
+
+3. 核对渲染后的非敏感断言：容器名 `octop-opengauss-aj`、`network_mode=bridge`、数据库驱动 `opengauss`、数据库名 `octop`、绑定 `172.17.0.1:18088`、数据卷 `/APP/DockerData/octop-aj/data` 和 `pull_policy=never`。不要把完整 `docker compose config` 输出保存到普通日志。
+4. 仅替换应用容器：
+
+   ```sh
+   docker compose --env-file config/.env \
+     -f docker-compose.opengauss-aj.yml \
+     up -d --force-recreate --no-deps
+   ```
+
+   不执行 `docker compose down -v`，不重启 openGauss/Nginx，不删除数据卷，不改 Nginx 路由。Spug 连接中断时先查询容器、image ID 和 health，再决定是否重试，不能盲目重复执行。
+
+### 7.7 发布后验收
+
+按以下顺序记录实际结果，任何一项失败都进入回滚判断：
+
+1. 容器 `running`、Docker health 为 `healthy`，image ID 与新归档一致，端口仍只绑定 bridge gateway，数据卷和网络未漂移。
+2. `/api/health` 返回 `ok=true`、`db=true`；检查 schema watermark、baseline marker、用户/Agent 加载和启动日志中的 migration 错误。
+3. 通过内部入口和 `/octop/` 验证 308、静态资源、API、WebSocket 鉴权边界；不创建生产测试数据，不执行业务写操作。
+4. 若本次涉及认证/连接器或前端相关变更，再验证 OIDC discovery/JWKS、Plat 内嵌票据、只读 MCP 和当前用户身份；OAuth token 有效期变化只对新签发令牌生效，需重新 OIDC 登录后测试。
+5. 若本次包含数据库迁移，额外检查 Memory/checkpoint、知识库 SQLite sidecar 和已配置的只读业务场景；完整业务回归及恢复演练单独记录，不能由 health 通过替代。
+6. 核对 Spug/OA/BPM 原有入口、Nginx 容器、openGauss 容器的 ID 和启动时间未被意外改变；保存命令返回码、摘要和去敏日志。
+
+### 7.8 回滚和发布收尾
+
+1. 应用未启动、health 失败或静态资源异常时，恢复更新前 `.env`/Compose 中的旧 image ID，执行同样的 `config -q` 后：
+
+   ```sh
+   docker compose --env-file config/.env \
+     -f docker-compose.opengauss-aj.yml \
+     up -d --force-recreate --no-deps
+   ```
+
+2. 如果新版本已经执行数据库迁移，不能只回滚镜像。只有在维护窗口、备份有效性和影响范围均确认后，才可将新 `octop` 库恢复到隔离验证过的备份；禁止覆盖 `plat` 或整个 openGauss 数据目录。
+3. 回滚后重新验证旧 image ID、health、schema、`/octop/` 入口和数据卷；保留新镜像、归档、日志和失败原因供排查，不能立即清理。
+4. 发布记录必须包含：发布编号、源码提交、镜像 ID、归档/分片 SHA-256、远端导入结果、备份位置、Compose SHA-256、开始/结束时间、验收结果、是否执行回滚和遗留风险。敏感值只记录文件路径和摘要，不记录明文。
+5. OA OAuth2 客户端 `octop` 的 access token、refresh token、OIDC provider、MCP 白名单、NAT/systemd 规则等属于独立配置变更；若本次同时调整，必须在记录中单独写明生效时间、回滚方式和重新登录要求。不要把内嵌 `embed-ticket` 的约 60 秒一次性时效改成长效令牌。
 
 发布放行前还必须明确 TLS 终止点、`SYSADMIN`/MD5 账号风险的批准记录，以及 50 年 token 的撤销和轮换负责人；缺任一项时只能标记为“技术部署完成”，不能标记为“生产安全放行”。
 
