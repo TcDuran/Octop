@@ -93,3 +93,27 @@ Nginx 和 openGauss 启动时间分别仍为 `2026-10-12T01:55:52.518555208Z`、
 2026-10-28 再次核对归档 SHA-256 后执行 `docker load -i`，导入 `octop-opengauss:main-ee6f5c7d`。远端报告相同 image ID、`linux/amd64`，默认运行用户为空（root）；远端 Docker 26.0.2 报告大小为 `3,138,882,839` bytes，与本地 Docker 的存储大小统计略有差异，镜像身份以 image ID 为准。
 
 Compose 已配置 `network_mode: bridge`，避免默认 `bridge` 不支持 Compose 服务别名的问题。远端已通过 `docker compose config -q`，且从渲染结果核对了镜像 ID、`pull_policy: never`、数据库名和账号 `octop`、数据库端点、数据卷及仅绑定 `172.17.0.1:18088`。启动后 schema watermark 为 25、public 基础表 36 张、管理员 0；首次启动的 schema ACL 修复仅作用于独立 `octop` 数据库。
+
+## 2026-10-30 ODC 镜像发布记录
+
+本轮构建并发布普通 PostgreSQL 镜像 `octop:odc-20261030-21462180-amd64` 至 ODC 主机 `221.232.69.57`。该镜像基于应用提交 `21462180`；其后 `e74415ec` 仅补充发布 SOP 文档，不改变镜像内容。部署保留现有 `/apps/octop/data`、PostgreSQL、Nginx 和回环端口配置。
+
+| 项目 | 结果 |
+| --- | --- |
+| 应用源码提交 | `21462180` (`feat: finalize AJ openGauss OIDC deployment package`) |
+| 发布记录文档提交 | `e74415ec`（仅更新文档） |
+| 镜像标签 | `octop:odc-20261030-21462180-amd64` |
+| 镜像 ID | `sha256:2101b0dbff5686e92b8ba12685b2dad165ab2bd79630f05507fce65b80ae6938` |
+| 平台与大小 | `linux/amd64`，约 3.03 GB |
+| 构建参数 | 正式 `docker/Dockerfile`；`VITE_BASE_PATH=/octop/`；`INSTALL_LOCAL_EMBEDDING=false`；腾讯 Debian mirror |
+| 本地应用核验 | 临时 amd64 容器 `/api/health` 返回 `ok=true`；空数据卷下 `db=false`；临时容器已清理 |
+| 交付归档 | `/tmp/octop-release-21462180/octop-odc-20261030-21462180-amd64.tar.gz`，约 1.1 GB |
+| 归档 SHA-256 | `6c9e44608b7223af93b47889f94bd0168123b1b6dea40a941cc5fc06efa192dc` |
+| 远端交付目录 | `/apps/octop/releases/21462180/`；35 个 32 MiB 分片逐片校验通过，远端 `gzip -t` 和完整 SHA-256 通过 |
+| 远端镜像核验 | `docker load` 成功；远端 image ID 与本地一致，平台 `linux/amd64` |
+| 更新前备份 | Compose、`.env`、容器和镜像 inspect 信息、健康基线、PostgreSQL custom dump（8.7 MB）及 `pg_restore --list` 输出保存在 `pre-deploy-backup/` |
+| 部署结果 | `octop-odc` 已切换新镜像并 healthy；`/api/health` 为 `ok=true, db=true, users_loaded=18, agents_running=15` |
+| 外部入口 | `/octop/` 返回 200，页面标题 `PLAT 助手`；`/octop` 仍返回 308 到 `/octop/` |
+| 保留状态 | 旧镜像保留；PostgreSQL、Nginx、BPM、PLAT 容器未重启；数据挂载仍为 `/apps/octop/data`，宿主机端口仍仅绑定 `127.0.0.1:8088` |
+
+本轮构建命令和远端替换步骤见 [AJ_DEPLOYMENT_RUNBOOK.md](AJ_DEPLOYMENT_RUNBOOK.md)。本记录说明镜像技术部署及基础入口验收，不代替 OIDC、登录后 WebSocket、聊天和完整业务场景验收。

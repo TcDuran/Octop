@@ -55,6 +55,7 @@ docker inspect --format '{{.Config.Image}} {{json .NetworkSettings.Networks}}' <
 
 ```sh
 docker buildx build \
+  --builder desktop-linux \
   --platform linux/amd64 \
   --target opengauss-runtime \
   --build-arg VITE_BASE_PATH=/octop/ \
