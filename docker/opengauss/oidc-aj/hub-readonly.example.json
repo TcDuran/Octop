@@ -1,0 +1,62 @@
+{
+  "service": {
+    "serviceCode": "oa",
+    "serviceName": "AJ OA 当前用户只读查询",
+    "baseUrl": "http://10.51.49.8:60001",
+    "tokenHeader": "token",
+    "upstreamTokenHeader": "token",
+    "status": "0",
+    "capabilityMode": "off",
+    "accessType": "REST",
+    "credentialResolver": "caller_relay"
+  },
+  "operation": {
+    "serviceId": "<OA_HUB_SERVICE_ID>",
+    "operationId": "oa.current-user",
+    "displayName": "查询当前登录用户身份",
+    "definition": {
+      "toolName": "oa_current_user",
+      "description": "只读查询当前调用者自身的用户编号和账号，不接受其他用户编号，不返回邮箱、电话或角色清单。",
+      "method": "GET",
+      "path": "/service/ss/user/profile/get",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "userId": {"type": "string"},
+          "username": {"type": "string"}
+        },
+        "required": ["userId", "username"],
+        "additionalProperties": false
+      },
+      "requestMapping": {},
+      "responseMapping": {
+        "successPointer": "/isSuccess",
+        "successEquals": true,
+        "body": {
+          "userId": "$.data.id",
+          "username": "$.data.username"
+        }
+      },
+      "timeoutMs": 10000,
+      "idempotencyRequired": false,
+      "authorization": {
+        "type": "all",
+        "permissions": ["system:assistant:use"]
+      }
+    }
+  },
+  "catalog": {
+    "serviceId": "<OA_HUB_SERVICE_ID>",
+    "catalogCode": "octop-readonly",
+    "catalogName": "Octop 只读身份验证",
+    "scenario": "验证 OIDC 用户令牌与实际 MCP 调用者一致",
+    "operationIds": ["oa.current-user"],
+    "mcpEnabled": false,
+    "restEnabled": false
+  }
+}

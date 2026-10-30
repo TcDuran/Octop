@@ -1,0 +1,11 @@
+[Unit]
+Description=Restore the AJ Octop OIDC NAT rule after boot or container replacement
+
+[Timer]
+OnBootSec=45s
+OnUnitInactiveSec=60s
+AccuracySec=5s
+Unit=octop-aj-oidc-network.service
+
+[Install]
+WantedBy=timers.target

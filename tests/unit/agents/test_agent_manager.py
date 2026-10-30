@@ -1631,6 +1631,13 @@ def test_build_harness_config_without_default_model(manager: AgentManager) -> No
     assert cfg.backend == _expected_default_backend(manager, "01AGENT")
 
 
+def test_build_harness_config_enables_progressive_mcp_loading(manager: AgentManager) -> None:
+    cfg = manager._build_harness_config(_row())
+    assert cfg.defer_mcp_tools is True
+    assert cfg.tool_search_mode == "client"
+    assert cfg.tool_search_fallback == "eager"
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("failure_type", [TypeError, httpx.ReadTimeout])
 async def test_model_retry_exhaustion_fails_background_job(

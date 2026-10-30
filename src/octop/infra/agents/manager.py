@@ -4223,6 +4223,16 @@ class AgentManager:
         harness_fields: dict[str, Any] = {}
         if "decision" in _HARNESS_AGENT_CONFIG_FIELDS:
             harness_fields["decision"] = self._decision.harness_config()
+        # Keep MCP server selection as the permission boundary, while letting
+        # Harness discover the selected server's tools on demand.  ``client``
+        # mode works across all function-calling providers; unsupported models
+        # fall back to the existing eager tool surface.
+        if "defer_mcp_tools" in _HARNESS_AGENT_CONFIG_FIELDS:
+            harness_fields["defer_mcp_tools"] = True
+        if "tool_search_mode" in _HARNESS_AGENT_CONFIG_FIELDS:
+            harness_fields["tool_search_mode"] = "client"
+        if "tool_search_fallback" in _HARNESS_AGENT_CONFIG_FIELDS:
+            harness_fields["tool_search_fallback"] = "eager"
 
         harness_cfg = HarnessAgentConfig(
             name=_memory_namespace(row.agent_id),

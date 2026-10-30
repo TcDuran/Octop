@@ -1,0 +1,30 @@
+# 审核稿：合并到现有 application-test.yml，不能覆盖整份文件。
+# 如已有 spring.config.import 或相同 plat 子树，保留原项后合并。
+spring:
+  config:
+    import:
+      - file:/opt/app/config/oidc-aj-signing-key.yml
+  redis:
+    redisson:
+      # 内嵌登录票据依赖既有 Redis；保留原 Redis 连接配置，不另起 Redis。
+      enabled: true
+
+plat:
+  ss:
+    oidc:
+      issuer: http://211.137.76.3:8081/oa/service
+      frontend-base-url: http://211.137.76.3:8081/oa/
+      key-id: aj-oa-oidc-20261029
+      embed-client-id: octop
+      embed-origins:
+        - http://211.137.76.3:8081
+  hub:
+    enabled: true
+    allowed-origins:
+      - http://10.51.49.8:60001
+      - http://10.51.49.8:60003
+  web:
+    # 后端实际 requestURI；仅排除试点 MCP 路径的 XSS 改写，仍保留认证。
+    # 如已有排除项，应保留原项并追加，不能覆盖原清单。
+    xssExcludeUrls:
+      - /service/oa/octop-readonly/mcp

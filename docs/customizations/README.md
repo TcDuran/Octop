@@ -2,7 +2,7 @@
 
 本目录统一记录本仓库相对官方 Octop 的改造、设计及升级检查点。代码继续遵循仓库原有模块边界，不要求搬到同一个运行时代码目录。
 
-核对基线：当前 `main` 提交 `868e7d15`（2026-10-29），官方同步基线为 `v1.0.3b1`（`890111b7`）；维护状态更新至 2026-10-29。官方权限 Tab 拆分、权限分组折叠及管理端建用户时选择默认专家均采用官方实现；PLAT 内嵌登录、极简默认布局、OIDC 首次登录助手、自动化分析和白标品牌保留。本轮只更新源码和维护文档，不创建生产版本标签；AJ 现网镜像仍基于 `ee6f5c7d`，品牌提交需要重新构建镜像后才会进入生产。
+核对基线：当前 `main` 提交 `868e7d15`（2026-10-29），官方同步基线为 `v1.0.3b1`（`890111b7`）；维护状态更新至 2026-10-29。官方权限 Tab 拆分、权限分组折叠及管理端建用户时选择默认专家均采用官方实现；PLAT 内嵌登录、极简默认布局、OIDC 首次登录助手、自动化分析和白标品牌保留。本轮不创建生产版本标签；AJ 已于 2026-10-29 更新为 `main-b46b9722` 镜像，包含白标提交 `868e7d15`。品牌、子路径、health 与数据库 schema 核验通过；登录后的完整业务验收仍待执行，详见 [AJ 发布记录](../../docker/opengauss/AJ_DEPLOYMENT_RECORD.md#2026-10-29-白标镜像更新)。后续本地未提交改动不属于本次镜像。
 
 ## 1. 改造目录
 
@@ -13,7 +13,7 @@
 | 极简布局、PLAT 嵌入与 OIDC 默认助手 | 已部署原 8088，完成首次/重复 OIDC、PLAT 真实内嵌与聊天验收 | [实现与验收记录](plat-minimal-oidc-assistant.md)；布局 Context、Sidebar、SSO service/server、general-assistant 模板 | 默认 minimal、保留已存偏好；嵌入标记与 iframe 双重判断；无个人专家时从原 general-assistant 模板幂等创建 PLAT·通用助手，仅改名，不新增表；make all 5152 passed，前端全量既有失败与时序波动见验收记录 |
 | 跨会话推送 | 已在当前基线集成 | `src/octop/infra/gateway/tools.py`、agent manager、工具目录及 i18n | `list_sessions` / `send_to_session` 的权限、历史留存和目标 session 语义；新成果工具应复用可复用部分，不改变旧工具契约 |
 | MCP 参数嵌套类型修复 | 已适配官方 octop-harness 1.0.5 | `docker/patches/patch_harness_mcp.py`、Dockerfile、MCP 探测与缓存相关代码 | 保留官方 enum、array、可选参数处理，仅补齐 LangChain 重建时丢失的嵌套 object properties；升级需检查补丁锚点及 tool_call_schema |
-| 白标品牌 | 已合并 `main`，待新镜像发布 | `brand/`、`brand/patch-octop-brand.sh`、`brand/verify-octop-brand.py`、Dockerfile | 构建阶段覆盖官方 favicon、logo、PWA 资产和页面标题；移除上游吉祥物及默认欢迎品牌文案，替换为 PLAT 助手内容；必须在构建产物和最终镜像中复核，AJ 现网旧镜像不包含本提交 |
+| 白标品牌 | 已合并 `main`，2026-10-29 已发布 AJ | `brand/`、`brand/patch-octop-brand.sh`、`brand/verify-octop-brand.py`、Dockerfile | 构建阶段覆盖官方 favicon、logo、PWA 资产和页面标题；移除上游吉祥物及默认欢迎品牌文案，替换为 PLAT 助手内容；必须在构建产物和最终镜像中复核，AJ `main-b46b9722` 已包含本提交，8 个品牌文件与镜像逐一校验一致 |
 | 官方构建期部署子路径 | 已切换为官方 `v1.0.3b1` 实现 | `dashboard/vite.config.ts`、`dashboard/src/utils/publicUrl.ts`、`VITE_BASE_PATH` | 每个前端构建通过 `VITE_BASE_PATH=/octop/` 固定部署前缀；Nginx 转发到 Octop 时去掉该前缀；不再使用 `OCTOP_BASE_PATH` 或运行时 ASGI 前缀中间件 |
 | AJ-PT REST → Hub MCP 配置迁移 | 33 项能力 / 35 个 operation 已全量真机通过 | [迁移与验收记录](ajpt-rest-mcp-migration.md)；Hub 服务/目录配置、AJ-PT 官方 SQL | 42 项发布、原 12 工具名保持；当前调用人权限、数据库版本、真实审批与幂等，非 AJ-PT 源码补丁 |
 | Hub Operation 认证 Header 映射 | 已本地安装开发制品并完成 Octop 实机验证 | [使用与验收记录](hub-operation-auth-headers.md)；moudule-plat Hub 后端、AJ-PT local 配置 | 仅 Operation 显式映射可覆盖默认上游凭证；本地 common/Hub/plat-starter 开发版一致，未上传 Nexus；旧 42 工具保持，JWT 刷新与幂等限制见记录 |

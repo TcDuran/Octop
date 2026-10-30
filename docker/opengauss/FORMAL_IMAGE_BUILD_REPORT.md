@@ -2,16 +2,16 @@
 
 ## 构建结论
 
-AJ 当前运行的正式镜像基于主分支提交 `ee6f5c7d3e88b6830c17646e63a6706944886881` 构建完成。镜像只包含 Octop 应用和 openGauss 客户端工具，不启动或包含 openGauss 数据库服务；镜像未推送到任何仓库。
+本次已发布正式镜像基于主分支提交 `b46b9722` 构建完成。镜像只包含 Octop 应用和 openGauss 客户端工具，不启动或包含 openGauss 数据库服务；镜像未推送到任何仓库。
 
-部署状态（2026-10-28）：镜像已离线导入 AJ 并运行，Nginx `/octop/` 已接入；健康、schema 和重启持久化及外网入口验收通过。当前为初始化向导，首次管理员、登录后的业务功能与隔离恢复演练尚未验收。2026-10-29 合并的白标品牌提交 `868e7d15` 尚未进入该运行镜像；发布前需要基于新提交重新构建并完成品牌、功能和迁移回归，不能只替换文档或重用旧镜像 ID。
+部署状态（2026-10-29）：AJ 已运行 `main-b46b9722` 新镜像，包含白标提交 `868e7d15`。容器 healthy，公开登录页标题为“PLAT 助手”，17 项资源/API 检查通过，8 个品牌文件与本地镜像逐一校验一致，浏览器未报告脚本错误。独立 `octop` 库仍为 schema 25、36 张 public 表，已有 1 个用户/管理员，health 显示 1 个运行中的 Agent；本轮未创建、重置账号或执行业务写操作。登录后的完整业务和隔离恢复演练尚未验收。
 
 | 项目 | 结果 |
 | --- | --- |
-| 镜像标签 | `octop-opengauss:main-ee6f5c7d` |
-| 镜像 ID | `sha256:906f34bdcb57f3356da1dc0b7d1c823f4f2e410c24ca8f229f302a39b1a6a576` |
+| 镜像标签 | `octop-opengauss:main-b46b9722` |
+| 镜像 ID | `sha256:b283255f0889e739d667c79d74429670f13c285d352396bf190ede19a2ce0223` |
 | 平台 | `linux/amd64` |
-| 镜像大小 | `3,138,821,813` bytes（约 3.14 GB） |
+| 镜像大小 | `3,134,870,544` bytes（约 3.13 GB） |
 | Dockerfile target | `opengauss-runtime` |
 | 前端路径 | `VITE_BASE_PATH=/octop/` |
 | 本地 embedding | `INSTALL_LOCAL_EMBEDDING=false`，未安装 `fastembed` |
@@ -30,7 +30,7 @@ docker buildx build \
   --target opengauss-runtime \
   --build-arg VITE_BASE_PATH=/octop/ \
   --build-arg INSTALL_LOCAL_EMBEDDING=false \
-  --tag octop-opengauss:main-ee6f5c7d \
+  --tag octop-opengauss:main-b46b9722 \
   --load \
   -f docker/Dockerfile .
 ```
@@ -45,41 +45,50 @@ docker buildx build \
 - `gs_dump --version` 与 `gs_restore --version` 均为 openGauss 6.0.5 build `5ba692ab`。
 - dashboard 产物包含 `/octop/` 路径资源。
 - `fastembed` 不存在，镜像未安装本地 embedding 模型。
+- 品牌验收通过：标题、manifest、静态品牌资源和构建后的 JS 均包含 `PLAT 助手`，未发现上游 Octop 品牌标题。
 - 临时核对容器已退出，未留下运行中的 Octop 容器。
 
 ## 交付与部署约束
 
-2026-10-28 已通过 Spug 文件管理器将镜像离线归档上传至 `10.51.49.8`，完成分片及完整归档校验，并导入远端 Docker。镜像 ID 与本地一致；正式应用已启动并通过健康、schema 和受控重启持久化验证。首次启动发现独立 `octop` 库的 `public` schema 未授予运行账号 CREATE 权限，已仅在该库授予 `USAGE, CREATE` 后成功初始化。生产 Compose 已固定为该本地镜像 ID，设置 `pull_policy: never`。部署步骤、数据库边界、备份恢复和回滚要求见 [AJ_DEPLOYMENT_RUNBOOK.md](AJ_DEPLOYMENT_RUNBOOK.md)。
+历史镜像 `main-ee6f5c7d` 的 AJ 运行记录保留在下文。本次新镜像已使用独立发布目录完成上传、校验和导入，确认 image ID 一致、备份现有配置后受控替换应用容器；旧镜像及旧发布目录保留用于回滚。部署步骤、数据库边界、备份恢复和回滚要求见 [AJ_DEPLOYMENT_RUNBOOK.md](AJ_DEPLOYMENT_RUNBOOK.md)。
 
 ## 离线归档上传记录
 
 | 项目 | 记录 |
 | --- | --- |
 | 目标主机 | `10.51.49.8` |
-| 远端目录 | `/APP/DockerData/octop-aj/releases/main-ee6f5c7d-20261028/`，权限 `0700` |
-| 归档文件 | `octop-opengauss-main-ee6f5c7d-20261028.tar.gz`，权限 `0600` |
-| 归档大小 | `1,213,336,901` bytes（约 1.13 GiB） |
-| 归档 SHA-256 | `99bd2891371da4e5ef8b1ad165afbc1cfe57421c07acf6c4c7c5dadd98737652` |
-| 分片方式 | 每片 32 MiB，共 37 片，文件后缀 `.part000` 至 `.part036` |
-| 校验清单 | `SHA256SUMS.parts`、`SHA256SUMS.archive`，均已上传 |
-| 校验结果 | 37 片 SHA-256 全部通过；合并后 SHA-256 与本地一致；`gzip -t` 通过 |
-| 远端 Docker 操作 | 已执行 `docker load`，ID 与本地一致；应用 health/schema/重启持久化通过；Nginx 已追加 `/octop/` 路由并 reload，外网入口验收通过，首次管理员与业务验收待完成 |
+| 远端目录 | `/APP/DockerData/octop-aj/releases/main-b46b9722-20261029/`，权限 `0700` |
+| 归档文件 | `octop-opengauss-main-b46b9722-20261029.tar.gz`，权限 `0600` |
+| 归档大小 | `1,209,496,010` bytes（约 1.13 GiB） |
+| 归档 SHA-256 | `fb28da2daa0e80801fffb92f888a8906882182850bcf55edacd874900fbd5f96` |
+| 分片方式 | 每片 32 MiB，共 37 片，后缀 `.part000` 至 `.part036` |
+| 校验清单 | 已上传并验证：`SHA256SUMS.parts`、`SHA256SUMS.archive` |
+| 校验结果 | 本地和远端 37 片校验通过，合并归档 SHA-256 一致，`gzip -t` 通过；历史 `main-ee6f5c7d-20261028` 归档保留 |
+| 远端 Docker 操作 | 已完成 `docker load`、image ID 核对、Compose 配置校验和受控替换；容器 running/healthy |
 
-本地使用 `docker save octop-opengauss:main-ee6f5c7d | gzip -1` 生成归档后分片，再使用 Spug 的上传文件入口逐个上传到上述独立目录。远端校验、合并命令如下；仅适用于本次文件集，已有完整归档时不得重复覆盖：
+本地使用 `docker save octop-opengauss:main-b46b9722 | gzip -1` 生成归档后分片，再使用 Spug 的上传文件入口逐个上传到上述独立目录。远端校验、合并命令如下；仅适用于本次文件集，已有完整归档时不得重复覆盖：
 
 ```sh
-cd /APP/DockerData/octop-aj/releases/main-ee6f5c7d-20261028
+cd /APP/DockerData/octop-aj/releases/main-b46b9722-20261029
 sha256sum --quiet -c SHA256SUMS.parts
 # 所有分片校验成功后再执行；noclobber 防止覆盖已有归档。
-(set -C; cat octop-opengauss-main-ee6f5c7d-20261028.tar.gz.part[0-9][0-9][0-9] > octop-opengauss-main-ee6f5c7d-20261028.tar.gz)
-chmod 600 octop-opengauss-main-ee6f5c7d-20261028.tar.gz
+(set -C; cat octop-opengauss-main-b46b9722-20261029.tar.gz.part[0-9][0-9][0-9] > octop-opengauss-main-b46b9722-20261029.tar.gz)
+chmod 600 octop-opengauss-main-b46b9722-20261029.tar.gz
 sha256sum -c SHA256SUMS.archive
-gzip -t octop-opengauss-main-ee6f5c7d-20261028.tar.gz
+gzip -t octop-opengauss-main-b46b9722-20261029.tar.gz
 ```
 
 以上步骤已成功执行；分片和校验清单暂保留在同一发布目录，供后续核对。上传和合并仅新增本次发布文件，没有修改现有数据库、应用容器或 Nginx 配置。
 
-## 镜像导入与配置准备结果
+## 2026-10-29 更新结果
+
+远端 Docker 报告 image ID 与本地一致、amd64、大小 `3,134,931,570` bytes；两端大小统计差异不影响 image ID。Compose 保留 `pull_policy: never`、默认 bridge 和 `172.17.0.1:18088` 绑定，仅更新镜像引用。受控重建返回码为 0，应用重建后的数据库与 Agent 加载正常。
+
+更新前配置和文件副本在 `backups/pre-main-b46b9722-20261029/`，包括旧 image ID、旧 Compose、受限 `env` 和文件数据副本。文件副本是在服务运行时复制，未验证为 SQLite 一致性恢复点。本轮更新前没有重新执行数据库全量备份；更新后补充的 `backups/post-main-b46b9722-20261029/octop-verified.dump` 为 `116,056` bytes，SHA-256 `bdce701edbc6096f0c7014294a9b75d7dcc70bccd829363233fc29eebfc3bcfe`，权限 `0600`，已用 6.0.5 `gs_restore -l` 检查目录；未执行恢复，不将其作为更新前数据库恢复点。
+
+Nginx 和 openGauss 启动时间分别仍为 `2026-10-12T01:55:52.518555208Z`、`2026-10-09T06:51:35.736230935Z`。本轮未修改 Nginx 配置，未在 `plat` 库执行 DDL/DML；Spug/OA/BPM 外网入口均返回 200（仅入口检查）。未进行第二次重启，以保留当前业务运行状态；本轮受控重建已验证启动和持久数据加载。完整过程见 [操作记录](AJ_DEPLOYMENT_RECORD.md#2026-10-29-白标镜像更新)。
+
+## 历史：2026-10-28 镜像导入与配置准备结果
 
 2026-10-28 再次核对归档 SHA-256 后执行 `docker load -i`，导入 `octop-opengauss:main-ee6f5c7d`。远端报告相同 image ID、`linux/amd64`，默认运行用户为空（root）；远端 Docker 26.0.2 报告大小为 `3,138,882,839` bytes，与本地 Docker 的存储大小统计略有差异，镜像身份以 image ID 为准。
 

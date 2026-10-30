@@ -1,0 +1,8 @@
+# 模板不可直接投入生产；实际文件只在服务器生成和保管。
+# 宿主机：/APP/DockerData/spring-boot-jdk21/oa/config/oidc-aj-signing-key.yml
+# 容器内：/opt/app/config/oidc-aj-signing-key.yml
+# 以 OA 进程可读的 UID/GID、0600 权限安装，不扩大配置目录权限。
+plat:
+  ss:
+    oidc:
+      private-key-pkcs8-base64: '<AJ_OA_RSA_PKCS8_DER_BASE64>'

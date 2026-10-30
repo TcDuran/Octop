@@ -2,7 +2,7 @@
 
 本目录说明当前 worktree 可复现的产品验证入口，不提供或替代官方 `datavec--0.7.2.sql` 安装脚本。
 
-这里记录的是隔离库测试，不能替代 AJ 生产验收。AJ 在 2026-10-28 已通过应用初始化、重启持久化和 Nginx 外网入口检查，但首次管理员、登录后的 Memory/知识库、业务 MCP 和隔离恢复演练仍待执行，详见 [AJ 操作记录](../AJ_DEPLOYMENT_RECORD.md)。不要将下列 live 测试直接指向 AJ 的生产 `octop` 库或既有 `plat` 库。
+这里记录的是隔离库测试，不能替代 AJ 生产验收。AJ 在 2026-10-28 已通过应用初始化、重启持久化和 Nginx 外网入口检查，2026-10-29 已更新白标镜像并完成 OA 只读 MCP/OIDC 链路验收；完整聊天、知识库、普通账号隔离和隔离恢复演练仍需单独完成，详见 [AJ 操作记录](../AJ_DEPLOYMENT_RECORD.md)。不要将下列 live 测试直接指向 AJ 的生产 `octop` 库或既有 `plat` 库。
 
 完整记录见 [产品向量接线实测](../../../docs/validation/opengauss-product-vector-20261026.md)。本轮真实知识库使用第三方 embedding，实际向量索引为 SQLite；未实现 openGauss 向量存储产品后端。
 

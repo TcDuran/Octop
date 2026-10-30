@@ -1,18 +1,23 @@
 # AJ production deployment configuration.
-# Place this file under /APP/DockerData/octop-aj/ and a mode-0600 .env in config/.
+# Place this file under /APP/DockerData/octop-aj/ and keep a mode-0600
+# config/.env beside it. Compose does not discover config/.env automatically;
+# every invocation must pass `--env-file config/.env` (or an absolute path).
 # The .env must contain reviewed values for:
 #   OCTOP_IMAGE              immutable local image ID or reference using @sha256 digest
 #   OCTOP_DATABASE_NETWORK   existing network (AJ preflight: default bridge)
 #   OCTOP_DATABASE_HOST      verified host bridge gateway (AJ preflight: 172.17.0.1)
 #   OCTOP_DATABASE_PORT      existing host mapping (AJ preflight: 15434)
 #   OCTOP_DATABASE_NAME      dedicated database named octop
-#   OCTOP_DATABASE_USER      dedicated non-superuser account for database octop
+#   OCTOP_DATABASE_USER      dedicated account for database octop; current AJ
+#                            requires approved SYSADMIN for Memory/checkpoint
 #   OCTOP_DATABASE_PASSWORD  password for that dedicated account
 #   OCTOP_BIND_ADDRESS       Docker bridge gateway reachable by host Nginx
 #   OCTOP_PUBLIC_BASE_URL    approved external URL, including /octop
 #
 # Review the network, bind address, TLS boundary, image digest, and credentials
-# before running `docker compose config` or starting this service.
+# before running `docker compose config` or starting this service. The
+# `environment` entries below receive the values after Compose interpolation;
+# this file does not use Compose's `env_file:` container injection mechanism.
 
 name: octop-opengauss-aj
 

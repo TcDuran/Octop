@@ -2,16 +2,17 @@
 
 本手册记录 AJ 环境 Octop 的发布准备、部署、验收与回滚步骤，后续相同环境可按此复用。生产方案见 [DEPLOYMENT_AJ_CN.md](DEPLOYMENT_AJ_CN.md)，本次逐项操作流水见 [AJ_DEPLOYMENT_RECORD.md](AJ_DEPLOYMENT_RECORD.md)，部署配置为 [`docker-compose.opengauss-aj.yml`](../docker-compose.opengauss-aj.yml)。
 
-截至 2026-10-28，应用和 Nginx 入口已部署并完成基础验收，当前为初始化向导。下面的创建、配置安装和路由追加步骤供新环境使用，不能在当前 AJ 环境重复执行；后续待办是首次管理员设置、登录后的业务验收和隔离恢复演练。
+截至 2026-10-29，AJ 已受控更新为 `main-b46b9722`，品牌登录页和基础验收通过；线上已存在管理员和运行中的 Agent。下面的创建、首次配置安装和路由追加步骤供新环境使用，不能在当前 AJ 环境重复执行。后续版本更新见第 7 节；登录后的完整业务验收和隔离恢复演练仍待执行。“本次发布记录”中的旧镜像信息保留为首次部署历史。
 
 ## 安全边界
 
 - 只新增 Octop 应用容器 `octop-opengauss-aj`，复用主机现有 openGauss；不得新增、重建或重启数据库容器。
-- Octop 只连接管理员新建的独立 `octop` 数据库和非超级用户账号。不要连接现有业务库，不在其中运行 Octop migration、测试 SQL 或扩展安装 SQL。
+- Octop 只连接独立 `octop` 数据库及同名账号。AJ 已于 2026-10-29 按用户明确授权授予该账号 `SYSADMIN` 系统管理权限，用于现有代码设置 `lockwait_timeout`；这是实例级权限，不是仅限 `octop` 库的授权。应用仍不得连接现有业务库或在其中执行 Octop migration、测试 SQL、扩展安装 SQL。
 - 不新增对外数据库端口。Octop 只绑定经现场确认的 Docker bridge gateway 地址和专用 `18088` 端口，由 Nginx 代理。
 - 不覆盖整份 Nginx 配置。先备份，只追加 `/octop/` 路由，配置测试通过后才 reload。
 - 账号口令及部署配置只放在 `/APP/DockerData/octop-aj/config/.env`；目录权限 `0700`、文件权限 `0600`。不得放入仓库、发布记录、命令行参数或截图。`docker compose config` 会展开密钥，输出不得贴入工单或日志。
-- 回滚只恢复 Nginx 配置并停止新增 Octop 容器。保留 Octop 数据目录和新数据库供排查；禁止 `docker compose down -v`。
+- 首次部署回滚可恢复 Nginx 配置并停止新增 Octop 容器；版本更新回滚则恢复更新前 `.env` 和 Compose，再用旧 image ID 重建应用，不撤销已使用的 Nginx 路由。保留数据目录、数据库和旧镜像；禁止 `docker compose down -v`。
+- 当前 AJ 的 OA/OIDC 入口仍需确认 TLS 终止位置；openGauss `octop` 账号具有为 Memory 所需的实例级 `SYSADMIN`，口令摘要为现有 MD5 配置；OA `octop` 客户端 token 有效期为约 50 年。上述三项都必须在生产放行记录中单独确认，不能由应用健康检查替代。
 
 ## 1. 发布前只读预检
 
@@ -67,18 +68,20 @@ docker buildx build \
 
 验证构建参数、镜像架构、PLAT 品牌、`/octop/` 静态资源、`gs_dump`/`gs_restore` 版本和 `/api/health`。镜像中的 openGauss 镜像仅用于构建阶段复制匹配版本的客户端工具；它不会作为数据库容器运行。
 
+Docker 正式交付的最小文件集为：镜像归档及分片/完整归档 SHA-256 清单、Compose 文件、源码提交和 image ID 记录、本文档及操作记录、`operations/` 运维文件。wheel 是独立的 Python 离线安装交付物，不随 Docker 镜像部署；`.env`、OIDC 客户端 secret、签名私钥、数据库备份和业务数据不得进入发布归档。
+
 ## 3. 配置数据库与主机
 
 本次数据库实施记录必须写入 [AJ_DEPLOYMENT_RECORD.md](AJ_DEPLOYMENT_RECORD.md)。执行前先确认 `octop` 库和角色不存在，并确认操作者使用 `omm` 管理身份。`plat` 是现有业务数据库/账号，不作为 Octop 运行账号，也不在其中执行 Octop DDL/DML。
 
-数据库操作只新增独立 `octop` 角色和同名数据库：角色不得拥有超级用户、建库或建角色权限；数据库由该角色拥有。先将口令安全生成并写入权限为 `0600` 的 `.env`，以 `NOLOGIN` 创建角色；通过标准输入执行 `ALTER ROLE ... PASSWORD ...`，确认 SQL 输出明确成功后再启用 LOGIN。不要把口令放进 SQL 文件、命令行参数、终端输出或操作记录。该环境的 `gsql` 不支持 PostgreSQL 的 `\\password` 命令，而且 SQL 报错时可能仍返回成功退出码，必须检查 SQL 输出本身。本次使用 PostgreSQL 风格的环境变量/`-w`方式未能完成认证；该版本明确支持 `gsql -2` 从标准输入接收连接口令，并已用此方式验证成功。部署时按现场 `gsql --help` 确认客户端参数。只读预检已确认 `omm` 有建库/建角色权限而 `plat` 没有；不得复用 `plat` 账号。若目标库或角色已存在，停止并调查归属，不能覆盖、改密或清理。
+数据库操作只新增独立 `octop` 角色和同名数据库，数据库由该角色拥有。初建角色使用 `NOCREATEDB NOCREATEROLE`；当前 AJ 随后已获批准授予 `SYSADMIN`，不再是普通业务账号。沿用当前镜像、且 Memory/checkpoint 继续存入 openGauss 的新环境，需要在启动验收前核对超时参数权限；如采用相同管理权限方案，应先获得该环境授权，再执行下文步骤。先将口令安全生成并写入权限为 `0600` 的 `.env`，以 `NOLOGIN` 创建角色；通过标准输入执行 `ALTER ROLE ... PASSWORD ...`，确认 SQL 输出明确成功后再启用 LOGIN。不要把口令放进 SQL 文件、命令行参数、终端输出或操作记录。该环境的 `gsql` 不支持 PostgreSQL 的 `\\password` 命令，而且 SQL 报错时可能仍返回成功退出码，必须检查 SQL 输出本身。本次使用 PostgreSQL 风格的环境变量/`-w`方式未能完成认证；该版本明确支持 `gsql -2` 从标准输入接收连接口令，并已用此方式验证成功。部署时按现场 `gsql --help` 确认客户端参数。只读预检已确认 `omm` 有建库/建角色权限而 `plat` 没有；不得复用 `plat` 账号。若目标库或角色已存在，停止并调查归属，不能覆盖、改密或清理。
 
 全新环境的数据库操作顺序示例（仅在确认库和角色不存在后执行；本次 AJ 环境已完成，不要重跑）：
 
 ```sql
 -- 先只读确认，不要先运行下面的 DDL：
 SELECT datname FROM pg_database WHERE datname = 'octop';
-SELECT rolname, rolsuper, rolcreatedb, rolcreaterole
+SELECT rolname, rolsystemadmin, rolsuper, rolcreatedb, rolcreaterole
 FROM pg_roles WHERE rolname IN ('omm', 'plat', 'octop');
 
 -- 确认 octop 不存在后，按现场 openGauss 支持的角色属性语法创建：
@@ -90,7 +93,7 @@ CREATE DATABASE octop OWNER octop ENCODING 'UTF8' TEMPLATE template0;
 
 验证发现，即使创建 `NOLOGIN` 角色，省略密码仍会被 openGauss 拒绝（`The password could not be NULL`）。密码长度超过 32 字符或复杂度不符合服务端要求也会被拒绝；由于 `gsql` 的退出码不能可靠表示 SQL 执行失败，脚本必须检查并匹配成功输出后再继续后续语句。上方 `PASSWORD` 值必须由安全流程提供，不能原样执行占位符；没有安全注入口令时，不执行建角色/建库。
 
-该 openGauss 6.0.5 的 `\\h CREATE ROLE` 帮助不包含 PostgreSQL 的 `SUPERUSER/NOSUPERUSER` 选项；本方案使用该版本支持的属性，并确认 Octop 角色没有 `SYSADMIN` 等管理角色。建库成功后，连接新库检查数据库 owner、角色属性和连接权限；确认没有在 `plat` 数据库产生新表或其他对象。若当前 openGauss 版本不接受上述语法，停止并根据服务端 `gsql`/帮助输出修订脚本，不要在生产库反复试 SQL。
+该 openGauss 6.0.5 的 `\\h CREATE ROLE` 帮助不包含 PostgreSQL 的 `SUPERUSER/NOSUPERUSER` 选项；本方案使用该版本支持的属性；AJ 当前账号已授予 `SYSADMIN`，必须通过 `pg_roles.rolsystemadmin` 核验，不能仅检查 `rolsuper`。建库成功后，连接新库检查数据库 owner、角色属性和连接权限；确认没有在 `plat` 数据库产生新表或其他对象。若当前 openGauss 版本不接受上述语法，停止并根据服务端 `gsql`/帮助输出修订脚本，不要在生产库反复试 SQL。
 
 建库后还必须核验 schema 权限。本次 `octop` 虽是数据库 owner，但 `public` schema 仍属于 `omm`，账号只有 USAGE、没有 CREATE，导致首次 migration 报 `permission denied for schema public`。修复仅在新 `octop` 库执行，不能扩大到共享实例或 `plat` 库：
 
@@ -114,7 +117,52 @@ SELECT has_schema_privilege('octop', 'public', 'USAGE') AS usage_ok,
        has_schema_privilege('octop', 'public', 'CREATE') AS create_ok;
 ```
 
-两项权限必须均为 `t`，还需用实际应用账号连接。AJ 已完成该授权，随后初始化和受控重启均通过；无需重复建库、改密或提高账号管理权限。
+两项权限必须均为 `t`，还需用实际应用账号连接。AJ 已完成 schema 授权和基础初始化；该授权不能解决下面的 `lockwait_timeout` 参数权限问题，无需重复建库或改密。
+
+### Agent Memory 启动所需的 SYSADMIN 授权（AJ 已实施）
+
+AJ openGauss 6.0.5 的 `lockwait_timeout` 在 `pg_settings` 中为 `superuser` context。现有 `octop-memory==1.0.2+opengauss.2` 的 openGauss Memory/checkpoint 初始化会执行 `SET LOCAL lockwait_timeout = 5000`，存储检查/清理也会设置该参数。普通账号启动专家会报 `permission denied to set parameter "lockwait_timeout"`；库 owner、schema USAGE/CREATE 或 `GRANT ... ON DATABASE` 都不能替代参数所需权限。
+
+2026-10-29，用户明确选择不改代码，并授权给独立 `octop` 账号授予 `SYSADMIN`。本次仅执行以下角色属性变更，没有修改实例全局参数、口令或应用配置，也没有重新发布镜像或重启容器：
+
+```sh
+# 由已有管理员 omm 进入独立 octop 库，不使用 plat 业务账号：
+docker exec -it opengauss_test su - omm -c 'gsql -p 5432 -d octop'
+```
+
+```sql
+-- 已有 AJ 环境先核验，不必重复授权；新环境须先确认相应授权：
+SELECT rolname, rolsystemadmin, rolsuper, rolcreatedb, rolcreaterole
+FROM pg_roles WHERE rolname = 'octop';
+ALTER ROLE octop SYSADMIN;
+SELECT rolname, rolsystemadmin, rolsuper, rolcreatedb, rolcreaterole
+FROM pg_roles WHERE rolname = 'octop';
+```
+
+AJ 实测结果为 `octop|t|f|f|f`。其中 `rolsystemadmin=t` 表示已具有系统管理权限；即使 `rolsuper=f`，也不能据此判为普通账号。`SYSADMIN` 的权限范围覆盖实例，独立数据库和连接配置仍指向 `octop`，但不构成该账号的权限隔离边界。
+
+再使用实际应用账号 `octop` 建立连接，执行以下验证；不能用 `omm` 的成功结果替代运行账号测试：
+
+```sql
+SELECT current_user, current_database(); -- octop / octop
+BEGIN;
+SET LOCAL lockwait_timeout = 5000;
+SHOW lockwait_timeout; -- AJ 返回 5s
+SELECT 1;
+ROLLBACK;
+SHOW lockwait_timeout; -- AJ 恢复原值 20min
+```
+
+参数验证通过后，在专家页面对失败专家执行“重试启动”，同时核验 `/api/agents` 中的真实 `state` 和 `last_error`，不能只看 `/api/health` 的计数。AJ 专家 `main` 已恢复 `running`、`last_error=null`，Memory 存储检查返回 200，后端 `opengauss`、namespace `agent_main`。没有因此宣称聊天、checkpoint 读写、知识库或业务 MCP 全流程已经通过。
+
+如后续决定收回权限，需先确认应用已不再依赖该权限，获得批准后由管理员执行以下命令并复验；当前未执行撤销，直接撤销可能使专家后续启动再次失败：
+
+```sql
+ALTER ROLE octop NOSYSADMIN;
+SELECT rolname, rolsystemadmin FROM pg_roles WHERE rolname = 'octop';
+```
+
+本次实际操作与审计目录见 [AJ 操作记录](AJ_DEPLOYMENT_RECORD.md#2026-10-29-octop-账号-sysadmin-授权)。
 
 在 `/APP/DockerData/octop-aj/` 放置 Compose 文件；账号口令和其他环境配置单独放在 `config/.env`。目录设为 `0700`、文件设为 `0600`。必填配置：
 
@@ -131,6 +179,22 @@ OCTOP_PUBLIC_BASE_URL=http://211.137.76.3:8081/octop
 ```
 
 TLS 边界确认后再确定公开 URL 使用 `http` 还是 `https`。口令只写入权限为 `0600` 的 `config/.env`，不进仓库、命令行参数或记录页；运行 `docker compose --env-file config/.env config -q` 校验时避免输出渲染后的完整配置。
+
+### Compose 环境文件与 OIDC 客户端密钥的边界
+
+Compose 插值变量来自当前 shell、显式 `--env-file`，以及 Compose 默认发现的 `.env`；`config/.env` 不属于默认发现位置。因此 AJ 的每次操作都必须显式指定配置文件：
+
+```sh
+cd /APP/DockerData/octop-aj
+docker compose --env-file config/.env \
+  -f docker-compose.opengauss-aj.yml config -q
+docker compose --env-file config/.env \
+  -f docker-compose.opengauss-aj.yml up -d
+```
+
+`OCTOP_*` 的 `${...}` 先由 Compose 在宿主机侧解析，再写入 `octop` 服务的 `environment`。其中 `:?` 表达式缺值即失败，`:-info` 仅对日志级别提供默认值；Compose 文件没有使用 `env_file:` 将文件整体注入容器。
+
+`config/oidc-aj-client.env` 是 OIDC 客户端登记凭据的受限保管文件（目录 `0700`、文件 `0600`），与数据库运行时 `config/.env` 分开。它不在 Compose 文件中被读取，也没有挂载进 Octop 容器；OA 客户端和 Octop provider 的 secret 已分别写入各自受控配置/数据库。只有执行经审核的客户端登记、恢复或轮换操作时，才按需由受限 shell 显式读取该文件，不能把它误传给 `docker compose`，也不能把 client secret 写入 Compose、仓库或普通日志。
 设置 `/APP/DockerData/octop-aj/data` 的属主和权限前，先依据镜像运行用户确认目标值；不得更改现有 openGauss 数据目录权限。将 Compose 文件部署至该目录，运行 `docker compose config -q`；避免打印完整渲染配置。每项主机变更前后都要在记录页登记。
 
 AJ 使用默认 `bridge` 网络时，Compose 必须采用 `network_mode: ${OCTOP_DATABASE_NETWORK}`，不能以 `networks: ... external: true` 连接默认 bridge；后一种写法会附加服务别名，被 Docker 以 `network-scoped aliases are only supported for user-defined networks` 拒绝。当前部署配置已修正，并通过临时 Compose 驱动容器实际验证。
@@ -201,6 +265,8 @@ docker exec nginx nginx -s reload
 - 使用匹配版本 `gs_dump`/`gs_restore` 备份恢复新数据库；同时备份完整 Octop 数据目录、`.env`（按密钥材料保护）和 Nginx 配置。SQLite 备份须暂停写入或采用一致性方式并包含 WAL。
 - 恢复至隔离目标后重新验证登录、Memory 和知识库；记录归档摘要、恢复结果及数据完整性。
 
+隔离恢复不得覆盖线上 `octop` 库或 `/APP/DockerData/octop-aj/data`：由管理员创建带时间后缀的隔离库，使用匹配版本的 `gs_restore --exit-on-error` 恢复；复制 Compose 为临时文件，改用隔离库、临时容器名和未占用 loopback 端口，并先执行 `docker compose ... config -q`。数据库恢复后，再将配套数据目录复制到独立临时 `OCTOP_HOME`，检查 `knowledge/**/index.sqlite` 的 `PRAGMA integrity_check` 和原文摘要。验证 health、schema、Memory/checkpoint、知识库检索和只读 MCP；完成后停止临时实例，确认无连接后删除隔离库和临时目录，保留脱敏审计结果。
+
 ## 6. 回滚
 
 恢复 Nginx 原配置并测试，通过后 reload；停止 Octop 应用容器并保留数据库、数据目录和镜像供调查。若 migration 已运行且需回到旧数据库状态，只能按经验证的备份恢复新 `octop` 数据库。不得删除或覆盖现有 openGauss 实例、现有数据库、其他容器或卷。
@@ -231,3 +297,119 @@ docker exec nginx nginx -s reload
 | 验收 / 备份恢复 | 启动前数据库与数据目录备份完成；健康、schema 和受控重启持久化通过；隔离恢复、首次管理员、登录和完整业务验收待执行 |
 
 构建补充：首次使用 `octop-amd64-builder` 时因 Harbor 证书只含 DNS SAN、而 Dockerfile 用 IP 地址访问而失败；没有关闭 TLS 校验。第二次使用 `desktop-linux` 构建，复用了本机已有的 openGauss 6.0.5 缓存镜像作为客户端文件来源。数据库容器与客户端来源镜像的 image ID 相同，服务 build 后续经数据库驱动查询确认为 `5ba692ab`。本次没有从生产主机拉取或启动 openGauss 镜像。正式镜像已在合并后的 `main` 提交 `ee6f5c7d` 上构建、离线交付并运行，详见正式构建报告。
+
+## 7. 后续版本更新
+
+2026-10-29 已按该流程完成 `main-b46b9722` 更新，详见 [更新记录](AJ_DEPLOYMENT_RECORD.md#2026-10-29-白标镜像更新)。当前 AJ 已有管理员和运行中的 Agent，不能再按首次初始化流程重复建库、创建管理员或追加 Nginx 路由。
+
+1. 固定干净源码提交构建镜像，保留 PLAT 品牌校验、`VITE_BASE_PATH=/octop/`、amd64 和匹配版本客户端检查。使用独立标签和发布目录；本地后续未提交修改不得混入已核准镜像。
+2. 新镜像归档按 32 MiB 分片上传；每片和完整归档 SHA-256、`gzip -t` 均通过后才导入。合并使用 noclobber，旧归档不覆盖。核对 image ID，保留旧镜像。
+3. 替换前备份现有 `.env`、Compose、旧 image ID 和数据库，并获取一致的文件/SQLite 备份；运行中直接复制文件目录不能当作已验证的一致性恢复点。若涉及迁移，必须先在隔离库演练升级与恢复。发布后生成的 dump 不作为发布前恢复点。
+4. 更新 `.env` 的 `OCTOP_IMAGE`（不打印完整文件），`docker compose config -q` 后仅重建 Octop：`docker compose --env-file config/.env -f docker-compose.opengauss-aj.yml up -d --no-deps`。不操作现有数据库容器和 Nginx 路由；通过 Spug 执行时保存返回码及去敏日志，连接断开后先查询现状再决定是否重试。
+5. 核对 image ID、healthy、health、schema、用户/Agent 加载和 `/octop/` 品牌资源；检查原 Spug/OA/BPM 入口。完整业务验收单独记录，不因 health 通过而标记所有功能已验收。
+6. 更新失败时，恢复更新前 `.env` 和 Compose，再用旧镜像 `up -d --no-deps`。需要数据库降级/恢复时另行审核，禁止直接覆盖生产库或执行 `down -v`。
+7. 发布完成后同步操作记录和校验清单，敏感配置、数据库备份和用户数据留在受限目录。文档以当前镜像提交与历史部署记录分别标注，避免误用旧镜像。
+8. 若 OA OAuth2 客户端 `octop` 的 access token 有效期发生调整，需在发布记录中记录客户端字段和生效时间；配置只影响后续新签发的 `X-Plat-Token`，已存 Plat 凭证必须重新 OIDC 登录后才会更新。不要把内嵌 `embed-ticket` 的约 60 秒一次性时效改成长效令牌。
+
+发布放行前还必须明确 TLS 终止点、`SYSADMIN`/MD5 账号风险的批准记录，以及 50 年 token 的撤销和轮换负责人；缺任一项时只能标记为“技术部署完成”，不能标记为“生产安全放行”。
+
+## 8. AJ OIDC 公网地址回访转发
+
+2026-10-29 已按用户批准实施本节。用途是让 Octop 后台请求公网 OIDC 地址时，实际进入本机内网 Nginx，保持 issuer、HTTP Host 和浏览器回调地址一致。网络转发已通过；后续 OA OIDC、Octop provider/connector 和只读 Hub 工具也已完成配置，最终验收见第 9 节及 [AJ 操作记录](AJ_DEPLOYMENT_RECORD.md#2026-10-29-oidc-实际配置与验收)。
+
+### 适用条件与边界
+
+- 当前主机 `10.51.49.8`，默认 Docker bridge 接口 `docker0`、子网 `172.17.0.0/16`；Octop 容器为 `octop-opengauss-aj`。
+- 公网目的地址 `211.137.76.3:8081`，内网目的地址 `10.51.49.8:8081`；该端口有实际运行的 docker-proxy，再进入现有 Nginx `80`。
+- 已从 Octop 容器验证内网 OA 可达，携带公网 Host 也能到达同一 OA。Nginx 的 OA 代理路径保持原样。
+- 仅增加一条带 `octop-aj-oidc-hairpin` 标记的 NAT PREROUTING 规则，限定当前 Octop 源 IP `/32`、入接口 `docker0`、公网目的 IP `/32` 和 TCP `8081`。不按 HTTP 路径区分，因此该容器访问此 IP/端口的其他路径同样走内网。
+- 不修改原有规则和默认策略，不增加全局 OUTPUT 转发，不新增容器、不设置全局 HTTP_PROXY，也不修改应用代码或镜像。
+- 不照抄到其他主机：需重新审核容器名、网络、内外地址、端口代理监听及防火墙管理方式。若未来移除 docker-proxy 或修改网络，本方案需重新核验。
+
+### 初次安装
+
+实施前，在受限操作目录保存 `iptables-save -t nat`、端口监听以及相关容器的镜像和启动时间。仅备份不意味着可以全量恢复；Docker 动态规则不得被旧快照覆盖。AJ 实施时 firewalld、iptables 和 nftables 管理服务均 inactive / disabled，本次没有启用它们。
+
+首次规则先临时添加验证。以下是本次实际源 IP 的执行记录，不能作为未来容器 IP 的常量复用：
+
+```sh
+iptables -w 5 -t nat -I PREROUTING 1 \
+  -i docker0 -s 172.17.0.8/32 -d 211.137.76.3/32 \
+  -p tcp --dport 8081 \
+  -m comment --comment octop-aj-oidc-hairpin \
+  -j DNAT --to-destination 10.51.49.8:8081
+```
+
+临时验证通过后，上传并校验仓库 `docker/opengauss/operations/` 中三份文件，将它们安装到 `/APP/DockerData/octop-aj/operations/oidc-network/`，目录 0700、文件 0600，root 所有。它们是生产运维文件，不是 Octop 包内代码：
+
+| 文件 | 用途 |
+| --- | --- |
+| `aj-oidc-network.py` | 查当前容器 IP，幂等维护自身标记规则；容器停止/查不到时清除旧规则；`--remove` 精确清理 |
+| `octop-aj-oidc-network.service` | 以宿主机 root 运行一次规则核对，不启动/重启 Docker 或应用 |
+| `octop-aj-oidc-network.timer` | 开机后 45 秒触发，其后约每 60 秒核对，调度精度 5 秒 |
+
+在同类已批准部署中，上传并核对文件后执行：
+
+```sh
+systemd-analyze verify \
+  /APP/DockerData/octop-aj/operations/oidc-network/octop-aj-oidc-network.service \
+  /APP/DockerData/octop-aj/operations/oidc-network/octop-aj-oidc-network.timer
+install -m 0644 \
+  /APP/DockerData/octop-aj/operations/oidc-network/octop-aj-oidc-network.service \
+  /etc/systemd/system/octop-aj-oidc-network.service
+install -m 0644 \
+  /APP/DockerData/octop-aj/operations/oidc-network/octop-aj-oidc-network.timer \
+  /etc/systemd/system/octop-aj-oidc-network.timer
+systemctl daemon-reload
+systemctl start octop-aj-oidc-network.service
+systemctl enable --now octop-aj-oidc-network.timer
+```
+
+如果目标目录、unit 或同标记规则已存在，先检查其内容与归属，不能直接覆盖。当前 AJ 已安装，不需要重复安装。timer 是持久化恢复机制，没有使用全量 `iptables-save` 文件恢复 Docker 规则。
+
+### 验证与后续容器发布
+
+```sh
+systemctl is-enabled octop-aj-oidc-network.timer
+systemctl is-active octop-aj-oidc-network.timer
+systemctl show octop-aj-oidc-network.service -p Result -p ExecMainStatus
+systemctl show octop-aj-oidc-network.timer -p LastTriggerUSec
+iptables -t nat -S PREROUTING
+iptables -t nat -L PREROUTING -n -v -x
+```
+
+预期 timer 为 enabled / active，最近一次任务 Result=success、ExecMainStatus=0；只有一条自身标记规则，源 IP 与当前容器一致。oneshot service 执行完成后为 inactive 是正常状态。重复执行 service 不应重建正确规则或重置其计数器。排查日志可使用 `journalctl -u octop-aj-oidc-network.service --since today --no-pager`。
+
+从 Octop 容器，以原公网 URL 验证 OA 页面、discovery、JWKS 和 `/octop/api/health`；宿主机自身直接使用 `http://10.51.49.8:8081/oa/`。目前 discovery / JWKS 返回 HTTP 200 + 业务码 500，只说明不再连接超时，待 OA OIDC 配置补齐后必须再验证标准协议响应。
+
+后续重建 Octop 容器后，在获取新 IP 并确认端口代理仍可用后，立即运行 `systemctl start octop-aj-oidc-network.service`，再验收 OIDC，避免等待下一次定时核对。系统重启或 Docker 规则重建后也可用该命令立即恢复。周期恢复正常调度下约一分钟，不是实时切换。生产没有做主机重启或容器重建演练，仅已验证配置校验、实际执行、自动触发与隔离模拟。
+
+### 精确回滚
+
+先停用 timer 防止重新添加，再清除本次规则和两个新增 unit；保留运维脚本与审计记录：
+
+```sh
+systemctl disable --now octop-aj-oidc-network.timer
+systemctl stop octop-aj-oidc-network.service
+/usr/bin/python3 /APP/DockerData/octop-aj/operations/oidc-network/aj-oidc-network.py --remove
+rm -- /etc/systemd/system/octop-aj-oidc-network.timer \
+  /etc/systemd/system/octop-aj-oidc-network.service
+systemctl daemon-reload
+```
+
+仅删除本次标记规则，不执行 `iptables -F`、`iptables -t nat -F` 或整表恢复。回滚会使 Octop 重新面对原有公网回访阻塞。AJ 已生成权限 0700 的现场回滚脚本，位置见 [操作记录](AJ_DEPLOYMENT_RECORD.md#2026-10-29-oidc-公网地址回访转发)。当前未执行生产回滚。
+
+## 9. OA OIDC / 只读 MCP 配置（已实施）
+
+2026-10-29 已在获批范围内完成 OA OIDC、Octop provider/connector、OA 内嵌票据和一个只读身份 MCP 工具的配置。配置变更审核稿及 `oidc-aj/` 示例仍保留作后续环境模板，但示例含占位符或停用状态，不能直接上传后启用。
+
+已生效的关键配置如下：
+
+- OA issuer 为 `http://211.137.76.3:8081/oa/service`，RSA PKCS#8 签名密钥为 AJ 独立密钥，JWKS 已返回有效 RSA key。
+- OA 客户端 `octop` 使用 authorization code、PKCE 和 `openid profile email`，回调为 `http://211.137.76.3:8081/octop/api/auth/oidc/callback`。
+- Hub 已登记并发布 OA `oa.current-user` 只读 Operation，目录 `octop-readonly` 仅启用 MCP；本轮没有登记 BPM 业务工具，也没有调用业务写接口。
+- Octop provider/连接器已启用，`plat_mcp_urls` 只登记 OA 只读 MCP 完整地址；实际探测返回 `oa_current_user`。
+- OA 与 Octop embed origin 均为 `http://211.137.76.3:8081`；OA/BPM 上游 allowed-origins 为 `http://10.51.49.8:60001`、`http://10.51.49.8:60003`，不使用 `/*`。
+- 2026-10-30 已将 OA OAuth2 客户端 `octop` 的访问令牌和刷新令牌有效期设置为 `1576800000` 秒（约 50 年）。该设置只影响新签发的 `X-Plat-Token`；已有 Octop 保存的 Plat 凭证仍按原到期时间判断，变更后必须重新登录一次。
+
+协议和真实调用验收已通过：discovery/JWKS 正常，OA admin 完成 OIDC 登录并映射为 Octop 用户；新会话调用 `oa_current_user` 返回 OA 当前用户 `admin` 的身份信息。embed-ticket 使用完整 PKCE 参数消费成功。Octop health 保持 `ok=true`、`db=true`。详细标识、脱敏审计目录、回滚边界和未覆盖的普通账号/业务写工具验收见 [AJ 操作记录](AJ_DEPLOYMENT_RECORD.md#2026-10-29-oidc-实际配置与验收) 与 [OIDC / MCP 分析](AJ_OA_OIDC_MCP_ANALYSIS.md)。

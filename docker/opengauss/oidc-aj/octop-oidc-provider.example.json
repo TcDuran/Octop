@@ -1,0 +1,17 @@
+{
+  "enabled": false,
+  "display_name": "OA 登录",
+  "issuer": "http://211.137.76.3:8081/oa/service",
+  "client_id": "octop",
+  "client_secret": "<AJ_OCTOP_CLIENT_SECRET>",
+  "scopes": "openid profile email",
+  "dashboard_origin": "http://211.137.76.3:8081",
+  "extra": {
+    "plat_mcp_urls": [
+      "http://10.51.49.8:8081/oa/service/oa/octop-readonly/mcp"
+    ],
+    "plat_embed_origins": [
+      "http://211.137.76.3:8081"
+    ]
+  }
+}

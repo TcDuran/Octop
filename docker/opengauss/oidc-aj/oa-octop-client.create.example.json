@@ -1,0 +1,20 @@
+{
+  "clientId": "octop",
+  "secret": "<AJ_OCTOP_CLIENT_SECRET>",
+  "name": "AJ PLAT 助手",
+  "description": "AJ OA 与 Octop 的 OIDC 试点客户端",
+  "status": "0",
+  "authType": "OIDC",
+  "accessTokenValiditySeconds": 3600,
+  "refreshTokenValiditySeconds": 86400,
+  "redirectUris": [
+    "http://211.137.76.3:8081/octop/api/auth/oidc/callback"
+  ],
+  "authorizedGrantTypes": ["authorization_code"],
+  "scopes": ["openid", "profile", "email"],
+  "autoApproveScopes": ["openid", "profile", "email"],
+  "authorities": [],
+  "resourceIds": [],
+  "permanentTokenEnabled": "0",
+  "additionalInformation": "{}"
+}

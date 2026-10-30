@@ -1,10 +1,10 @@
 # AJ 环境 Octop 部署方案
 
-状态：数据库、当前正式镜像、Compose、`.env` 和数据目录已完成；应用健康、schema 和重启持久化验证通过，Nginx `/octop/` 路由已接入并完成外网入口验收。当前页面为受密码保护的初始化向导，首次管理员设置和完整业务验收待执行。GitHub `main` 已有更新的白标品牌提交，但当前 AJ 镜像尚未包含该提交，需重新构建并完成发布前验证。操作与备份路径见操作记录和发布手册。
+状态（2026-10-29）：AJ 已更新为主分支 `b46b9722` 镜像，包含白标品牌；容器 healthy、公开登录页“PLAT 助手”和静态资源通过核验。schema 25、36 张表保持不变，线上已有 1 个管理员及 1 个运行中的 Agent。本轮仅替换应用容器，openGauss、Nginx 未重启。登录后的完整业务和隔离恢复演练仍待验收；操作、备份与回滚路径见操作记录和发布手册。
 
 ## 方案结论
 
-只新增一个 Octop 应用容器 `octop-opengauss-aj`，复用主机上现有 openGauss 服务，不新增或替换 openGauss 容器。由现有数据库管理员在该实例中新建数据库 `octop` 和同名、非超级用户业务账号 `octop`；Octop 只连接这个新数据库。现有数据库和表内容不做 DDL/DML 修改。
+只新增一个 Octop 应用容器 `octop-opengauss-aj`，复用主机上现有 openGauss 服务，不新增或替换 openGauss 容器。由现有数据库管理员在该实例中新建数据库 `octop` 和同名独立账号 `octop`；该账号已于 2026-10-29 按用户授权授予 `SYSADMIN` 系统管理权限，以支持现有 Memory/checkpoint 初始化设置 `lockwait_timeout`。Octop 连接配置仍只指向这个新数据库；`SYSADMIN` 本身是实例级权限，不能视为库级隔离。现有数据库和表内容不做 DDL/DML 修改。
 
 Agent Memory 的关系记忆和 checkpoint 继续使用现有 openGauss 后端；当前不使用 Memory 向量检索，因此不需要 embedding 模型或 DataVec。知识库向量仍保存在 SQLite sidecar。部署不执行 `CREATE EXTENSION datavec`，也不制作 openGauss 派生镜像。
 
@@ -38,14 +38,14 @@ Compose、现场连接参数、权限受限的 `.env` 和正式镜像已准备�
 3. 编译不可变 Octop 镜像，前端构建设置 `VITE_BASE_PATH=/octop/`，关闭本地 embedding 安装，验证品牌资源和子路径资源后再记录镜像摘要。构建使用审核过的干净提交，不在生产机现场构建。
 4. 备份现有 Nginx 配置后增加 `/octop/` 代理；不覆盖整份配置。Octop 端口只允许代理入口访问，不对外公开数据库端口。
 
-新数据库已由管理员在现有 openGauss 实例上创建。角色只拥有新 `octop` 数据库所需权限，没有超级用户、建库或建角色权限；已通过驱动连接确认认证成功且当前库为 `octop`。该操作只新增角色和数据库对象；没有对现有业务数据库或表执行初始化、升级、测试 SQL。应用启动后的 Octop migrations 仅作用于新 `octop` 数据库。
+新数据库已由管理员在现有 openGauss 实例上创建。账号最初以普通角色建立，后因专家启动报 `permission denied to set parameter "lockwait_timeout"`，在用户明确授权后执行 `ALTER ROLE octop SYSADMIN`。当前 `rolsystemadmin=t`、`rolsuper=f`、`rolcreatedb=f`、`rolcreaterole=f`；核验系统管理权限应看 `rolsystemadmin`。实际应用账号设置该参数通过，专家 `main` 已恢复 `running` 且 `last_error=null`，Memory 存储检查返回 200。该处理未改代码、镜像或实例全局参数；授权、核验与撤销步骤见 [发布手册](AJ_DEPLOYMENT_RUNBOOK.md#agent-memory-启动所需的-sysadmin-授权aj-已实施)。没有对现有业务数据库或表执行初始化、升级、测试 SQL。应用启动后的 Octop migrations 仅作用于新 `octop` 数据库。
 
 ## 部署步骤
 
 以下是供后续环境参考的部署顺序。本次数据库、应用和 Nginx 接入已完成，详见 [AJ_DEPLOYMENT_RECORD.md](AJ_DEPLOYMENT_RECORD.md)；不得在当前环境重复创建或重置账号、覆盖已有配置：
 
 1. 只读确认现有 openGauss 容器、版本和镜像摘要、数据库连接网络/端口、磁盘和内存；确认 Octop 容器名、`18088` 端口和 `/APP/DockerData/octop-aj/data` 未被占用。新环境按发布手册创建独立库/账号并核验 `public` schema 的 USAGE/CREATE；当前 AJ 库已完成，不再重复建库建角色。
-2. 创建 Octop 独立数据目录和权限受限的配置文件，部署单服务 Compose 与已审核的镜像；运行 Compose 配置检查后再启动 Octop 容器。
+2. 创建 Octop 独立数据目录和权限受限的配置文件，部署单服务 Compose 与已审核的镜像；`config/.env` 不会被 Compose 自动发现，配置检查和启动必须显式使用 `docker compose --env-file config/.env -f docker-compose.opengauss-aj.yml ...`。`config/oidc-aj-client.env` 仅保存 OIDC 客户端登记凭据，不挂载、不注入 Octop 容器。
 3. 检查 Octop 健康状态、迁移水位和 `/data/.octop` 持久化挂载，执行一次受控重启，验证健康和向导文件持久化。
 4. 备份 Nginx 配置并追加 `/octop/` 路由。测试 Nginx 配置后 reload，确认静态资源从 `/octop/` 加载且 API 健康检查成功。
 5. 通过初始化向导创建管理员，配置业务模型、第三方 embedding 及所需连接器，再验收登录、聊天、Memory 和知识库；首次设置完成后继续验证业务数据重启持久化。
