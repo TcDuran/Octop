@@ -4,6 +4,8 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../i18n";
 import type { OctopAgent } from "../context/AgentContext";
 
+const layoutMode = vi.hoisted(() => ({ isPlatEmbedded: false }));
+
 vi.mock("../api/request", () => ({
   request: vi.fn(async (path: string) => {
     if (path.endsWith("/skills")) {
@@ -97,6 +99,10 @@ vi.mock("../context/AgentContext", () => ({
     setActiveAgent: () => undefined,
     refresh: async () => undefined,
   }),
+}));
+
+vi.mock("../context/LayoutModeContext", () => ({
+  useLayoutMode: () => layoutMode,
 }));
 
 import AgentProfileDrawer from "./AgentProfileDrawer";
@@ -228,5 +234,29 @@ describe("AgentProfileDrawer sections", () => {
     expect(screen.queryByText("experts.table.persona")).not.toBeInTheDocument();
     expect(screen.queryByText("Demo skill")).not.toBeInTheDocument();
     expect(screen.queryByText("Demo subagent")).not.toBeInTheDocument();
+  });
+
+  it("hides persona and subagent management in the embedded PLAT view", async () => {
+    layoutMode.isPlatEmbedded = true;
+    try {
+      render(
+        <I18nextProvider i18n={i18n}>
+          <AgentProfileDrawer open agent={agent} onClose={vi.fn()} />
+        </I18nextProvider>,
+      );
+
+      const subagentHeader = await screen.findByText(
+        "experts.subagentFilesTitle",
+      );
+      expect(
+        subagentHeader.closest(".ant-collapse-header")?.querySelector("button"),
+      ).toBeNull();
+      expect(
+        screen.queryByText("experts.table.persona"),
+      ).not.toBeInTheDocument();
+      expect(screen.getByText("Demo subagent")).toBeInTheDocument();
+    } finally {
+      layoutMode.isPlatEmbedded = false;
+    }
   });
 });

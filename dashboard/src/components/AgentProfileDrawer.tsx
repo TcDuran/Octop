@@ -12,6 +12,7 @@ import { request } from "../api/request";
 import { withFromWorkspace } from "../utils/fromWorkspace";
 import type { OctopAgent } from "../context/AgentContext";
 import { useAgent } from "../context/AgentContext";
+import { useLayoutMode } from "../context/LayoutModeContext";
 import { isAgentChatReady } from "../utils/agentError";
 import { isTeamAgent } from "../utils/teamAgent";
 import {
@@ -115,6 +116,7 @@ export default function AgentProfileDrawer({
 }: AgentProfileDrawerProps) {
   const { t } = useTranslation();
   const { agents } = useAgent();
+  const { isPlatEmbedded } = useLayoutMode();
   const skillDisplayName = useSkillDisplayName();
   const [loading, setLoading] = useState(false);
   const [filesLoading, setFilesLoading] = useState(false);
@@ -367,7 +369,7 @@ export default function AgentProfileDrawer({
             >
               {t("chat.teamProfile.hostNote")}
             </p>
-          ) : (
+          ) : !isPlatEmbedded ? (
             <div
               style={{
                 marginTop: 10,
@@ -382,7 +384,7 @@ export default function AgentProfileDrawer({
               </span>
               <MbtiPersonaTag value={agent.persona_mbti} />
             </div>
-          )}
+          ) : null}
         </div>
 
         {isTeam ? (
@@ -654,16 +656,18 @@ export default function AgentProfileDrawer({
                             count: subagents.length,
                           })}
                         </div>
-                        <button
-                          type="button"
-                          className={styles.viewMoreLink}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setSubagentCatalogOpen(true);
-                          }}
-                        >
-                          {t("common.viewMore")}
-                        </button>
+                        {!isPlatEmbedded ? (
+                          <button
+                            type="button"
+                            className={styles.viewMoreLink}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setSubagentCatalogOpen(true);
+                            }}
+                          >
+                            {t("common.viewMore")}
+                          </button>
+                        ) : null}
                       </div>
                     ),
                     children: (
